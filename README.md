@@ -1,295 +1,335 @@
-# Axon
+# Gambit
 
-> **Collective intelligence. Collective wealth.**
-> An AI portfolio manager for onchain investment groups — built into MiniPay on Celo.
+> **Catur uang jajan untuk satu miliar pengguna onchain berikutnya.**
+> MiniApp untuk MiniPay yang mengubah catur jadi microearning berbasis skill — puzzle harian, pertandingan 1v1 stake kecil, klub mingguan, dan marketplace coach, semuanya settle pakai cUSD di Celo Mainnet.
 
 [![Built on Celo](https://img.shields.io/badge/Built%20on-Celo-FCFF52)](https://celo.org)
 [![MiniPay](https://img.shields.io/badge/MiniApp-MiniPay-blue)](https://minipay.to)
-[![Track](https://img.shields.io/badge/Track-AI%20Agents-purple)](https://docs.celo.org/build-on-celo/build-with-ai/overview)
-[![ERC-8004](https://img.shields.io/badge/Agent-ERC--8004-black)](https://docs.celo.org/build-on-celo/build-with-ai/overview)
+[![Track](https://img.shields.io/badge/Track-Games%20%2B%20B2C-purple)](https://docs.celo.org/developer/build-on-minipay/overview)
+[![Stablecoin](https://img.shields.io/badge/Settlement-cUSD-green)](https://docs.celo.org/protocol/stability/doto)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 
 ---
 
-## The Problem
+## Masalahnya
 
-Solo DeFi investors get all the sophisticated AI tools. Nuvia Finance automates yield farming. Shrimpy rebalances portfolios. Jenova makes allocation calls. All of them assume one thing: **you're investing alone, with enough capital to diversify.**
+Catur punya 600 juta+ pemain di seluruh dunia. Chess.com punya 150 juta+ akun. Tapi tidak ada platform catur yang dibangun untuk populasi yang benar-benar dilayani MiniPay: 7 juta+ wallet stablecoin di Nigeria, Kenya, Ghana, Afrika Selatan, Filipina, Indonesia, dan Amerika Latin.
 
-That leaves two populations completely unserved.
+Chess.com dan Lichess mengasumsikan WiFi cepat, checkout PayPal, dan budget coaching $30/bulan. Produk catur Web3 yang sudah ada pun salah sasaran — Immortal Game raised $15.5M tapi menargetkan kolektor NFT Ethereum; OnChess dan fork open-source lainnya adalah platform "stake winner-takes-all" yang dituning untuk bankroll crypto-native. Tidak ada satu pun yang dibangun untuk wallet Opera MiniPay di Mombasa dengan footprint 2MB, signer legacy-transaction-only, dan user yang tidak pernah dengar istilah ERC-721.
 
-**Population 1 — Retail users in emerging markets.** The 14M+ MiniPay users across Kenya, Nigeria, Philippines, and Latin America don't have enough capital as individuals to meaningfully diversify across DeFi. They already pool money together — *chama, ajo, stokvel, paluwagan, tandas* — but they manage these pools in WhatsApp groups and Google Sheets. One person holds the pot. Trust degrades. No strategy. No transparency.
+Artinya ada tiga populasi yang sama sekali belum terlayani.
 
-**Population 2 — Crypto-native groups.** DAOs, investment clubs, friend groups who want to deploy collective capital into DeFi yield strategies. Today they cobble together Gnosis Safes, manual rebalancing, Discord polls. There is no native tool where a group can set a risk profile and let an AI agent run the portfolio.
+**Populasi 1 — Pencari pocket money di emerging markets.** Ojol di Jakarta, mahasiswa di Lagos, pekerja gig di Manila. Mereka punya $0.50 – $5 pendapatan discretionary harian. Mereka mau cara yang fun, berbasis skill, untuk dapat tambahan kecil — bukan judi, bukan farming token, bukan kerjaan tambahan. Catur cocok banget: reward dari latihan, resonansi budaya universal, dan tidak pernah terasa seperti kerjaan.
 
-Both populations are asking the same question: **why can't my group have an AI portfolio manager?**
+**Populasi 2 — Social players yang invite pakai nomor HP, bukan username.** Di pasar MiniPay, "add me di chess.com" nggak pernah terjadi — tapi "ini nomor WhatsApp aku" terjadi tiap hari. Unit catur yang natural di sini bukan ladder global, melainkan klub 4–8 teman main mingguan taruhan kecil. Produk untuk itu sekarang: grup WhatsApp + IOU berbasis kepercayaan.
 
-## The Solution
+**Populasi 3 — Amatir kuat yang bisa mengajar tapi tidak bisa memonetisasi.** Pemain 1600-ELO di Jakarta atau Accra bisa coaching pemula $2–5 per jam. Rate global chess.com $30–100 — terlalu mahal untuk student lokal. Belum ada marketplace di antara keduanya.
 
-**Axon** is the neural layer for onchain group investing. Every group on Axon gets:
+Ketiganya sudah ada di dalam MiniPay. Tidak ada produk catur di sana.
 
-A shared vault on Celo Mainnet (ERC-4626 share accounting) that custodies member deposits in CELO, cUSD, USDC, and other whitelisted stablecoins. A dedicated AI agent with its own onchain wallet (ERC-8004) that analyzes the market, proposes allocations, and executes rebalances within strict risk bounds. Three configurable risk profiles — Conservative, Balanced, Aggressive — set by the group admin and enforced at the contract level, so the AI literally cannot exceed them. Automated capital routing to audited Celo protocols (Moola, Ubeswap, Mento, stCELO) — Axon never invents its own yield, it orchestrates battle-tested ones. Hybrid governance where the AI executes small rebalances autonomously and puts large allocation shifts up for member vote. Pay-as-you-go AI inference via x402, so small groups pay only for what the agent actually thinks about. Every decision signed by the agent, logged onchain, visible on agentscan.
+## Solusinya
 
-Solo investors get Nuvia. **Groups get Axon.**
+**Gambit** adalah catur yang direimajinasi jadi microearning berbasis skill di dalam MiniPay. Setiap fitur di-pricing dalam stablecoin dengan angka yang masuk akal di Lagos, Nairobi, Manila, dan Jakarta — bukan San Francisco. Setiap interaksi settle pakai cUSD di Celo Mainnet. Setiap undangan jalan pakai nomor HP, bukan username.
 
-## How It Works
+Gambit ship empat product surface di hari pertama.
+
+**Daily Puzzle.** Satu puzzle catur per hari, gratis ikut, leaderboard global. Prize pool didanai sponsor + fee protokol dari paid games. Top finisher split prize pool. Reset tengah malam UTC. Loop ala Wordle, diterapkan ke catur.
+
+**Micro-Stake 1v1.** Lawan stranger atau teman di stake 0.50 / 1 / 2 cUSD. Pemenang ambil pot minus fee protokol 3%. Time control Blitz (3+2) dan Rapid (10+0). Didesain untuk istirahat lima menit, bukan sesi satu jam.
+
+**Chess Club.** Bikin klub privat 4–8 member. Semua stake weekly buy-in (default 1 cUSD). Round-robin selama seminggu. Juara 70%, runner-up 20%, 10% carry over ke minggu depan sebagai retention hook. Undangan jalan pakai nomor HP via Celo SocialConnect — undangan tidak perlu setup wallet sebelum terima invite.
+
+**Coach Marketplace.** Pemain rating 1400+ bisa list sesi coaching 30 menit seharga 1–5 cUSD. Student bayar ke escrow, dirilis pas sesi selesai. Amatir kuat di Jakarta akhirnya punya pasar; pemula di Accra akhirnya punya coach yang terjangkau.
+
+Chess.com melayani puncak piramida global. **Gambit melayani dasar piramida.**
+
+## Cara Kerjanya
 
 ```
-1. Open MiniPay        →  Launch Axon MiniApp
-2. Verify humanity     →  Self Agent ID (Proof of Humanity)
-3. Create a Group      →  Set name, risk profile, invite link
-                          AxonFactory deploys GroupVault + AI agent
-4. Invite members      →  One-tap join via MiniPay
-5. Deposit capital     →  Members deposit CELO / cUSD / USDC to vault
-6. AI agent activates  →  Reads pool state, analyzes market (paid via x402)
-                          Allocates across Moola / Ubeswap / Mento / stCELO
-                          Stays within the admin's risk profile bounds
-7. Weekly rebalance    →  AI proposes adjustments
-                          Small shifts auto-execute, big shifts go to vote
-8. Track & claim       →  Real-time portfolio dashboard in MiniPay
-                          Withdraw shares anytime (subject to lock)
+1. Buka MiniPay          →  Launch Gambit MiniApp
+2. Verifikasi humanity   →  Self Proof of Humanity (one-tap)
+3. Pilih surface         →  Daily Puzzle · 1v1 · Club · Coach
+4. Stake / masuk         →  cUSD pindah dari wallet ke MatchEscrow
+5. Main                  →  Game jalan off-chain di server Gambit
+                             chess.js validasi gerakan
+                             Stockfish WASM bertenaga bot & puzzle gen
+6. Oracle result         →  Server sign hasil pakai oracle key
+                             Submit ke MatchEscrow
+7. Settle onchain        →  Pemenang withdraw cUSD
+                             Stake yang kalah minus 3% fee
+8. Tampilan lokal        →  "Kamu menang ₦820" — UI tampilkan NGN,
+                             KES, PHP, IDR, GHS di atas cUSD
 ```
 
-Every action is a Celo Mainnet transaction. Every AI decision is signed by the agent's ERC-8004 wallet. Every onchain action is queryable on [agentscan](https://agentscan.info/).
+Setiap stake, payout, distribusi puzzle-pool, buy-in klub, dan pembayaran coach adalah transaksi Celo Mainnet. Gerakan caturnya off-chain demi kecepatan dan biaya — satu game catur dengan 40+ gerakan kalau semua onchain bakal lebih mahal dari stake dan lebih lama dari gamenya sendiri.
 
-## Risk Profiles
+## Prinsip Desain
 
-The admin picks one profile at group creation. The profile encodes allocation bounds directly into the vault contract. The AI agent operates inside these bounds — it has no authority to exceed them.
+**Stake yang terasa lokal, bukan global.** Default stake: 0.50, 1, dan 2 cUSD. User di Nairobi melihat "Menang ₦820" / "Win ₦820" — cUSD cuma rail, mental model-nya mata uang lokal. Angkanya memang sengaja kecil: produknya adalah cari uang jajan, bukan judi.
 
-| Profile | Stable Yield (Moola) | CELO / stCELO | LP / Volatile | Max Drawdown Trigger |
-|---------|----------------------|---------------|----------------|----------------------|
-| Conservative | 75% | 20% | 5% | 5% — auto-derisk |
-| Balanced | 50% | 30% | 20% | 15% — auto-derisk |
-| Aggressive | 25% | 30% | 45% | 30% — auto-derisk |
+**Nomor HP adalah identitas utama.** Undangan Gambit pakai nomor HP, bukan alamat wallet atau username. Celo SocialConnect mapping nomor ke address; non-user menerima undangan berisi cUSD kecil yang auto-buat MiniPay pas pertama buka. Ini friction killer yang Farcaster maupun Telegram chess apps tidak punya.
 
-When drawdown triggers fire, the AI autonomously derisks the portfolio to the safer end of its bounds. This is an onchain circuit breaker — it cannot be disabled mid-cycle.
+**Skill-first, bukan gambling-first.** Setiap surface berbayar adalah catur berbasis skill. Tidak ada dadu. Tidak ada koin flip. Tidak ada pembungkus roulette. Narasinya "dapat apa yang skill kamu layak dapat," bukan "menang besar". Ini juga penting untuk regulasi di pasar target.
 
-## Hybrid AI Governance
+**Ramah async.** Gambit support live blitz buat yang mau, tapi format utama untuk Klub dan invitational adalah correspondence — satu gerakan per push notification, game selesai dalam hitungan jam. Format ini yang benar-benar cocok untuk user MiniPay yang lagi commute naik matatu/angkot, bukan player berjas dengan 20 menit waktu undivided.
 
-Axon's key design choice is that the AI is a **real autonomous agent** — not a propose-only suggestion bot, not a fully unsupervised trader. We split the action space by magnitude:
+**Semi-custodial untuk integritas, fully onchain untuk uang.** Game state di server Gambit (di-sign oleh oracle key), karena MiniPay sekarang hanya menerima legacy transactions dan belum support message signing secara reliable. Model kepercayaan yang sama yang dipakai online poker — dan sudah bekerja untuk puluhan juta player. Tapi, setiap dollar bergerak onchain.
 
-- **Rebalances under 10% of pool value** — AI auto-executes. Signed by agent wallet, logged onchain.
-- **Rebalances 10% or more** — AI proposes, members vote. 2/3 threshold, 48-hour window.
-- **New protocol addition** — Always requires member vote, regardless of size.
-- **Profile change** — Admin initiates, 2/3 member vote required.
-- **Emergency derisk** — AI auto-executes when drawdown trigger fires. No vote needed.
-
-This threshold model keeps Axon squarely inside the **AI Agents** hackathon track (real onchain autonomy) without crossing into unregulated robo-advisor territory. It also generates meaningful onchain activity per group per week — every rebalance, every proposal, every vote is a transaction.
-
-## Why Axon is Not "Just Another DeFi App"
-
-The hackathon rules flag DeFi built by solo builders as high-risk. Axon sidesteps this for three reasons the judges will recognize immediately.
-
-**We're a team, not a solo builder.** Axon is shipped by a multi-person team with distributed responsibility for contracts, AI, frontend, and ops.
-
-**We don't build new DeFi primitives.** Every dollar of yield is generated by audited protocols — Moola, Ubeswap, Mento, stCELO — that have been battle-tested with millions in TVL. Axon is an orchestration and AI layer. The scary part of DeFi (the yield contracts themselves) is something we *consume*, not author.
-
-**We're primarily an AI Agent project.** Yield is the use case that gives the agent somewhere to apply its intelligence. Judged through the AI Agents track lens, the novelty is the group-scoped autonomous agent with ERC-8004 identity, x402 payments, and celo/skills capabilities — not the yield mechanism.
-
-## Architecture
+## Arsitektur
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      MiniPay (Opera Wallet)                     │
-│                   14M+ stablecoin users globally                │
+│                7M+ user stablecoin di 53 negara                 │
 └────────────────────────────┬────────────────────────────────────┘
-                             │ MiniPay Hook
+                             │ MiniPay Hook (Viem + Wagmi)
                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Axon MiniApp (Frontend)                     │
+│                    Gambit MiniApp (Frontend)                    │
 │   Next.js 14 + Viem/Wagmi + TailwindCSS + shadcn/ui + Vercel    │
+│   react-chessboard + chess.js untuk board interaktif            │
+│   Formatter mata uang lokal (NGN, KES, GHS, PHP, IDR, ZAR)      │
 └──────────┬──────────────────────────┬───────────────────────────┘
            │                          │
            ▼                          ▼
 ┌──────────────────────┐   ┌──────────────────────────────────┐
-│   Orchestrator API   │   │   Celo Mainnet Smart Contracts   │
-│   Node.js + Hono     │   │   ├─ AxonFactory.sol             │
-│   Supabase (meta)    │◄──┼── ├─ GroupVault.sol (per group)  │
-│   Telegram Bot       │   │   ├─ AgentRegistry.sol (ERC-8004)│
-│                      │   │   ├─ RiskProfile.sol (library)   │
-│                      │   │   ├─ Governance.sol              │
-│                      │   │   └─ PerformanceBadges.sol       │
+│   Gambit Game Server │   │  Smart Contract Celo Mainnet     │
+│   Node.js + Hono     │   │   ├─ GambitHub.sol (registry)    │
+│   WebSocket (blitz)  │◄──┼── ├─ MatchEscrow.sol (1v1)       │
+│   Move validator     │   │   ├─ PuzzlePool.sol (daily)      │
+│   Stockfish WASM     │   │   ├─ ClubVault.sol (weekly)      │
+│   Oracle signer      │   │   ├─ CoachMarket.sol             │
+│   Puzzle generator   │   │   └─ GambitBadges.sol (ERC-5192) │
+│   Anti-cheat engine  │   │                                  │
+│   Supabase (meta)    │   │                                  │
 └──────────┬───────────┘   └─────────────┬────────────────────┘
            │                             │
-           │                             │ routes capital to
-           │                             ▼
-           │              ┌──────────────────────────────────┐
-           │              │     Audited Celo Protocols       │
-           │              │   Moola · Ubeswap · Mento ·      │
-           │              │   stCELO Liquid Staking          │
-           │              └──────────────────────────────────┘
-           ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    AI Agent Engine (per group)               │
-│   Claude Sonnet 4.6  →  Market analysis, allocation calls    │
-│   Claude Haiku 4.5   →  Fast nudges, weekly digests          │
-│   LangGraph          →  Multi-step agent orchestration       │
-│   celo/skills        →  Capability framework                 │
-│   ERC-8004 wallet    →  Agent identity + signing authority   │
-│   x402 (Thirdweb)    →  Per-inference micro-payments         │
-│   Self Agent ID      →  Onchain agent identity               │
-│   agentscan          →  Observability + audit trail          │
-└──────────────────────────────────────────────────────────────┘
+           ▼                             │
+┌──────────────────────────────────────┐ │
+│   Celo SocialConnect                 │ │
+│   Resolusi nomor HP → wallet         │ │
+│   Mapping privacy-preserving (ODIS)  │ │
+└──────────────────────────────────────┘ │
+                                         │
+                                         ▼
+                     ┌──────────────────────────────────┐
+                     │   cUSD · cEUR · USDC di Celo     │
+                     │   Mento Protocol stable rails    │
+                     └──────────────────────────────────┘
 ```
 
-### Smart Contract Layer
+### Lapisan Smart Contract
 
-| Contract | Responsibility |
+| Contract | Tanggung Jawab |
 |----------|----------------|
-| `AxonFactory.sol` | Deploys a new `GroupVault` and registers its AI agent per group creation |
-| `GroupVault.sol` | ERC-4626 share-based custody. Enforces risk-profile allocation bounds at the contract level |
-| `AgentRegistry.sol` | ERC-8004 agent registration, scoped permissions, onchain action log |
-| `RiskProfile.sol` | Library encoding the 3 profiles as immutable constraint parameters |
-| `Governance.sol` | Proposal + vote logic for above-threshold rebalances and profile changes |
-| `PerformanceBadges.sol` | Soulbound ERC-5192 tokens for milestones (first profit, 1-year hold, etc.) |
+| `GambitHub.sol` | Registry utama. Track match, klub, coach aktif; routing fee protokol; pausable buat emergency. |
+| `MatchEscrow.sol` | Escrow stake match 1v1. Kedua pemain deposit; oracle-signed result memicu payout; timeout-based dispute resolution. |
+| `PuzzlePool.sol` | Prize pool harian. Terima deposit sponsor + share fee protokol; distribusi Merkle end-of-day ke top finisher. |
+| `ClubVault.sol` | Turnamen klub mingguan. Collect buy-in, pegang pot, distribusi split 70/20/10 pas settlement. |
+| `CoachMarket.sol` | Registrasi coach (dengan attestasi ELO), escrow sesi, release pas selesai atau timeout. |
+| `GambitBadges.sol` | Soulbound ERC-5192 untuk milestone — "First Win," "Puzzle Streak 7," "Club Champion," "1400 Club." |
 
-### Protocol Integration Adapters
+### Game Engine Off-Chain
 
-Axon never holds custody of yield-generating positions in its own code. It uses thin adapter contracts that wrap external protocols:
+Server Gambit adalah sumber kebenaran game state. Ada karena kalau 40 gerakan catur ditaruh onchain per game, biayanya bakal lebih mahal dari stake-nya sendiri. Model integritasnya diadaptasi dari online poker:
 
-| Adapter | Wraps | Purpose |
-|---------|-------|---------|
-| `MoolaAdapter.sol` | Moola Market | Lending cUSD / USDC for stable yield |
-| `UbeswapAdapter.sol` | Ubeswap v3 | Concentrated liquidity LP positions |
-| `MentoAdapter.sol` | Mento Protocol | Stable swap rails for FX |
-| `StCeloAdapter.sol` | stCELO | Liquid staking of CELO |
+| Komponen | Tujuan |
+|----------|--------|
+| **Move validator** | `chess.js` di server revalidasi setiap gerakan dari client; gerakan ilegal ditolak; state diteruskan ke lawan. |
+| **Oracle signer** | Key khusus yang sign hasil akhir game. Signature disubmit ke `MatchEscrow` untuk unlock pot. Support rotasi key. |
+| **Stockfish WASM** | Bertenaga single-player practice, generasi puzzle harian, dan bot tier 800/1200/1600. Server-side buat turnamen, client-side buat latihan. |
+| **Anti-cheat engine** | Bandingkan distribusi kualitas gerakan vs evaluasi engine. Flag game pas centipawn-loss profile user geser mendekati permainan engine. |
+| **Timeout arbitrator** | Kalau player abandon game, lawan bisa call `MatchEscrow.claimForfeit()` setelah time control expired. Contract selesaikan tanpa interaksi server lagi. |
 
-Each adapter exposes a uniform interface (`deposit`, `withdraw`, `currentValue`) so the AI agent reasons in terms of allocation targets, not protocol-specific APIs. Adding a new adapter requires governance vote.
+### Flow Undangan Nomor HP
 
-### AI Agent Engine
+Ini fitur onboarding yang bikin Gambit jalan di pasar MiniPay.
 
-Every group gets exactly one AI agent. The agent runs on a weekly cadence plus on-demand triggers. Its capabilities, exposed through the `celo/skills` framework:
+1. Alice, yang sudah di Gambit, masukin nomor HP Bob buat invite ke Klub.
+2. Gambit query Celo SocialConnect (ODIS) untuk cari address yang termap ke nomor Bob.
+3. Kalau Bob sudah punya MiniPay, undangan masuk sebagai push; one-tap join.
+4. Kalau belum, Gambit generate invite link; pas pertama buka, MiniPay auto-provision wallet Bob dan claim credit onboarding cUSD kecil (didanai budget akuisisi user Gambit).
+5. Bob sekarang user Gambit dengan wallet ter-funded, siap main. Waktu dari invite ke gerakan pertama: di bawah dua menit.
 
-| Skill | What It Does | Onchain Artifact |
-|-------|--------------|-------------------|
-| `MarketAnalyzer` | Fetches Celo protocol yields, TVL, price feeds; synthesizes via Claude | IPFS-pinned report, CID onchain |
-| `AllocationProposer` | Computes target allocation within risk bounds, factoring market state | `Governance.propose()` or direct execute |
-| `RebalanceExecutor` | Signs and broadcasts rebalance transactions via agent wallet | Batched `GroupVault.rebalance()` call |
-| `DrawdownMonitor` | Watches pool value; fires emergency derisk when threshold breached | Auto `GroupVault.emergencyDerisk()` |
-| `MemberNudger` | Sends personalized contributions/performance updates via Telegram | Signed off-chain messages |
-| `WeeklyReporter` | Human-readable summary of what the agent did and why | Hash onchain, full report on IPFS |
+## Monetisasi
 
-The agent pays for its own Claude API inferences via **x402** micro-payments, drawing from a small agent wallet topped up by protocol fees (0.5% of rebalanced volume). No subscription. No centralized billing. Pure usage-based AI.
+Gambit cuma untung kalau user-nya menang. Tiga revenue stream, semuanya eksplisit dan kecil.
+
+| Stream | Rate | Yang Bayar |
+|--------|------|-----------|
+| **Fee match 1v1** | 3% dari pot | Pemenang (di-net dari payout) |
+| **Fee treasury klub** | 2% dari buy-in mingguan | Klub (di-net pas settlement) |
+| **Fee platform coach** | 5% dari harga sesi | Coach (di-net pas release) |
+
+Sebagian dari tiap stream otomatis mengalir balik ke `PuzzlePool` untuk memperbesar prize harian — jadi makin banyak network-nya main, makin besar puzzle gratis untuk semua orang. Ini flywheel Gambit.
+
+## Demo Flow
+
+**Scene 1 — Undangan.** Daniel, pemain 1450-ELO di Nairobi, mau bikin klub catur mingguan sama tiga teman. Dia buka Gambit di dalam MiniPay, tap "Create Club," kasih nama "Mathare Knights," set weekly buy-in 1 cUSD. Dia masukin tiga nomor HP. Dua teman sudah punya MiniPay — dapat push notification dan join satu tap. Yang satu lagi dapat link undangan via SMS; pas dia buka, MiniPay auto-provision wallet-nya. Total waktu: 90 detik.
+
+**Scene 2 — Daily Puzzle.** Fatima, mahasiswi di Lagos, buka Gambit jam 7 pagi. Puzzle hari ini: mate dalam tiga. Dia solve dalam 42 detik — tercepat ke-7 global hari itu. Dia masuk slice prize top-100; jatahnya ₦650 auto-credit ke MiniPay-nya tengah malam UTC. Dia tidak stake apa-apa. Dia cuma main puzzle.
+
+**Scene 3 — Stake 1v1.** Jam makan siang, Daniel queue match blitz 1 cUSD. Dapat lawan rating mirip dalam 4 detik. Kedua stake masuk `MatchEscrow`. Main blitz 3+2. Daniel menang on time. Server submit oracle-signed result. Payout 1.94 cUSD (pot 2 cUSD minus fee 3%) masuk MiniPay Daniel. 0.06 cUSD dari fee masuk ke `PuzzlePool` hari itu.
+
+**Scene 4 — Minggu Klub.** Selama seminggu, Mathare Knights main round-robin di dalam Klub. Daniel finish pertama (3W 0L), ambil 70% dari pot 4 cUSD = 2.80 cUSD. Runner-up dapat 0.80 cUSD. Sisa 0.40 cUSD roll ke pot minggu depan. Badge soulbound `ClubChampion` Daniel auto-mint.
+
+**Scene 5 — Sesi Coach.** Pemula di Accra, rating 720, book Daniel buat slot coaching 30 menit di harga 2 cUSD. Pembayaran escrow. Mereka main game instruksional di papan in-app, Daniel narrate via voice note. Sesi selesai, escrow release, Daniel terima 1.90 cUSD. Sebelumnya: pemula itu tidak mampu coach $30/jam di chess.com; Daniel tidak bisa monetisasi skill-nya. Sekarang keduanya sudah transaksi, dan onchain activity-nya ter-record di Celo.
+
+**Scene 6 — Withdrawal.** Akhir bulan, Fatima sudah akumulasi 5.20 cUSD dari puzzle + satu kemenangan klub. Dia tidak melakukan apa-apa spesial — sudah ada di MiniPay wallet-nya. Dia pakai untuk top-up kuota data langsung dari wallet yang sama. Catur bayar internetnya.
+
+## Kenapa Gambit Menang Celo Proof of Ship
+
+| Kriteria (dari dokumen hackathon) | Pemenuhan Gambit |
+|-----------------------------------|-------------------|
+| Deploy di Celo Mainnet dengan verified contract | 6 contract, semuanya verified di CeloScan |
+| Dibangun sebagai MiniApp dengan MiniPay hook | Primary dan satu-satunya entry point |
+| Real onchain activity | Setiap stake, payout, puzzle-pool, settlement klub, coach escrow adalah transaksi Celo |
+| Open source dengan GitHub publik | MIT license, repo aktif |
+| Proof of Humanity | Self checkmark wajib pas pertama launch |
+| **Cocok track Games** | Kategori utama. Catur universal, skill-based, dan punya resonansi budaya di setiap pasar MiniPay |
+| **Cocok track B2C onboarding** | Undangan nomor HP via SocialConnect + auto-provisioned MiniPay adalah acquisition loop terkuat di platform |
+| Tidak masuk ember "DeFi solo builder" yang ditolak | Games + B2C. Tanpa yield farming, tanpa liquidity provisioning, tanpa token launch |
+| Bukan "reward farming" | Payout butuh menang catur sungguhan atau solve puzzle sungguhan — skill gating tiap sen |
+| Simple dan functional | Flow empat tap: buka → verifikasi → masuk → main |
+| Ship-ability | Game server off-chain + thin onchain escrow adalah pattern terbukti (online poker, Immutable X gaming) — dicapai dalam submission window |
+| Integrasi ekosistem | MiniPay + Self + SocialConnect + Mento + cUSD — lima integrasi first-party Celo |
+| Daily habit | Daily puzzle kasih user alasan buka app tiap hari, naikin frekuensi sesi MiniPay |
+
+## Yang Bedain Gambit
+
+Tiap produk catur Web3 yang ada bersaing di satu dari dua sumbu: tokenomics lebih bagus, atau recording gerakan onchain lebih bagus. Dua-duanya dead end. Gambit bersaing di sumbu ketiga — **distribusi dan cultural fit di emerging markets** — yang tidak dikontest siapa pun.
+
+| Dimensi | Immortal Game | OnChess / Web3-Chess | Chess.com | **Gambit** |
+|---------|---------------|----------------------|-----------|------------|
+| Target user | Kolektor NFT Ethereum | Staker crypto-native | Subscriber berbayar global | User MiniPay emerging markets |
+| Default stake | $5+ / NFT-gated | $10+ | $0 / coaching berbayar | $0.50 – $2 cUSD |
+| Onboarding | Install wallet + mint NFT | Install wallet + fund | Sign-up email | Nomor HP → one tap di dalam MiniPay |
+| Invite | Alamat Ethereum | Alamat wallet | Username | **Nomor HP (SocialConnect)** |
+| Format utama | Real-time blitz | Real-time | Real-time | Real-time + **async correspondence** |
+| Pasar coach | Nggak ada | Nggak ada | $30–100/jam | $1–5 / 30 menit |
+| Mata uang settlement | ETH + $CMT | MATIC / Base ETH | USD fiat | **cUSD (stable)** |
+| Model fee | NFT entry + token | % tetap | Subscription | 3% match / 2% klub / 5% coach |
+| Distribusi | Web langsung | Web langsung | Web langsung | **Native di dalam MiniPay (7M+ wallet)** |
+
+Blue ocean, bukan red. Semua Web3 chess lain lagi rebutan 50.000 fan catur crypto-native yang sama. Gambit targetin populasi 100x lebih besar yang tidak di-reach siapa pun.
 
 ## Tech Stack
 
 **Frontend**
-Next.js 14 via `celo-composer` starter, Viem + Wagmi for Celo Mainnet RPC, MiniPay Hook for native wallet connection, TailwindCSS + shadcn/ui for mobile-first design, deployed to Vercel.
+Next.js 14 via starter `celo-composer`, Viem + Wagmi untuk RPC Celo Mainnet (MiniPay butuh legacy transactions, jadi EIP-1559 disabled di client-side), MiniPay Hook untuk koneksi wallet native, `react-chessboard` untuk UI interaktif, `chess.js` untuk validasi gerakan client-side, TailwindCSS + shadcn/ui untuk desain mobile-first, deploy ke Vercel.
 
 **Smart Contracts**
-Solidity 0.8.24, Hardhat, OpenZeppelin (AccessControl, ReentrancyGuard, ERC-4626, ERC-5192), deployed and verified on Celo Mainnet. Foundry for fuzz testing critical invariants (allocation bounds, drawdown triggers).
+Solidity 0.8.24, Hardhat, OpenZeppelin (AccessControl, ReentrancyGuard, Pausable, ERC-5192), deploy dan verified di Celo Mainnet. Foundry untuk fuzz testing invariant kritis (akuntansi escrow, arbitrasi timeout, distribusi Merkle puzzle pool).
 
-**AI Layer**
-Anthropic Claude Sonnet 4.6 for market reasoning, Haiku 4.5 for nudges and fast paths, LangGraph for multi-step agent workflows, ERC-8004 for agent identity, x402 via Thirdweb for per-inference payments, celo/skills as the capability framework, Self Agent ID for onchain agent identity, agentscan for observability.
+**Game Server**
+Node.js + Hono HTTP API, WebSocket untuk live blitz, `chess.js` untuk validasi gerakan server-side, Stockfish WASM untuk generasi puzzle dan bot, Supabase untuk metadata game + realtime UI state. Oracle key disimpan di KMS terdedikasi dengan support rotasi.
 
-**Backend**
-Node.js + Hono as a thin API layer, Supabase for group metadata and realtime UI state, Telegram Bot API for group notifications.
+**Integrasi Celo**
+MiniPay (surface utama), Self (Proof of Humanity), Celo SocialConnect + ODIS (undangan nomor HP), Mento Protocol (settlement cUSD), CeloScan (verifikasi contract).
 
-**Protocols Integrated**
-MiniPay, Moola Market, Ubeswap v3, Mento Protocol, stCELO. All audited, all production-grade on Celo Mainnet.
+**Anti-cheat**
+Pipeline evaluasi Stockfish. Analisis distribusi centipawn-loss. Deteksi anomali varian waktu gerakan. Queue review manual untuk game yang di-flag di atas threshold stake tertentu.
 
-**Onboarding**
-Self for Proof of Humanity verification — required by Celo Proof of Ship eligibility rules.
+## Model Risiko & Trust
 
-## Demo Flow
+Platform catur yang settle uang beneran harus earn trust. Kami address di empat front.
 
-**Scene 1 — Creation.** Four friends in Nairobi want to invest together. Fatima opens MiniPay. She launches Axon. Self verifies she's human in two seconds. She taps "Create Group" — names it "Nairobi Yield Club" — picks "Balanced" risk profile — shares the invite link to her three friends on WhatsApp. `AxonFactory.createGroup()` deploys the vault and registers the agent. Her friends join in the next ten minutes, each with one tap inside MiniPay.
+**Integritas server.** Server Gambit sign outcome game pakai oracle key terdedikasi yang ter-register di `GambitHub`. Risiko kompromi key dimitigasi dengan rotasi, nonce per-match, dan kemampuan pause escrow baru via `GambitHub.pause()`.
 
-**Scene 2 — First Deposit.** Each member deposits 200 cUSD. The `GroupVault` mints shares. Total pool: 800 cUSD. The Axon AI agent — now activated — announces itself in the group's auto-provisioned Telegram channel: *"Hi team. I'm your Axon agent. Balanced profile means 50% stable lending, 30% stCELO, 20% LP. I'll run my first allocation in 24 hours after I've read market conditions. You can see my wallet on agentscan."*
+**Anti-cheat.** Pemain yang dibantu Stockfish adalah ancaman eksistensial untuk platform catur uang. Gambit jalankan analisis centipawn-loss post-game di setiap paid match; match di atas threshold confidence di-flag, stake di-hold, review manusia jalan dalam 24 jam. Ban-nya onchain: `GambitBadges` user yang di-flag akan dapat SBT `FairPlayHold` yang di-enforce contract di stake-stake berikutnya.
 
-**Scene 3 — Allocation.** Next day, the agent fires a Claude Sonnet call (paid via x402 from its own wallet). It reads Moola's cUSD lending APR (4.2%), stCELO's effective yield (5.1%), and a Ubeswap CELO/cUSD LP position (8.7% with impermanent loss risk estimated at 2.1%). It computes the target allocation, which matches the Balanced profile. It signs and broadcasts the rebalance. Five transactions on Celo Mainnet. Gas paid from agent wallet. Weekly report posted.
+**Sengketa timeout.** Kalau server tidak responsif atau player disconnect lebih dari 3x time control, salah satu pihak bisa call `MatchEscrow.claimForfeit()` dengan last signed server state. Contract selesaikan tanpa butuh interaksi server lagi.
 
-**Scene 4 — Governance.** Two weeks in, market shifts. The agent sees an opportunity to push 35% into Ubeswap LP — but that's 15% above current allocation, above the 10% auto-execute threshold. It calls `Governance.propose()`. Members get a Telegram push. They review the agent's reasoning (CID linked from the proposal). Three of four vote yes. Proposal passes. Agent executes.
-
-**Scene 5 — Drawdown.** Market crashes. The LP position is down 12% in a week. The `DrawdownMonitor` fires at the 15% mark. The agent autonomously derisks — no vote needed, it's the emergency circuit breaker. Funds move to Moola stable lending. Group sees transparent onchain evidence of the protection. Axon agent posts a post-mortem.
-
-**Scene 6 — Payout.** Six months later, the pool is up 11.2% net of fees. Fatima withdraws her shares. `GroupVault` burns her shares and sends her proportional cUSD back to her MiniPay wallet. She gets a soulbound badge minted: "Axon Founding Member — Nairobi Yield Club."
-
-## Why Axon Wins Celo Proof of Ship
-
-| Criterion (from hackathon docs) | Axon Fulfillment |
-|----------------------------------|------------------|
-| Deployed on Celo Mainnet with verified contracts | 6 contracts + 4 adapters, all verified |
-| Built as a MiniApp with MiniPay hook | Primary and only entry point |
-| Real onchain activity | Every rebalance, vote, deposit, and badge is a transaction |
-| Open source with public GitHub | MIT license, active repo |
-| Proof of Humanity | Self Agent ID mandatory at onboarding |
-| AI Agents track fit | ERC-8004 agent wallet, celo/skills capabilities, x402 payments — the agent *is* the product |
-| Pay-as-you-go LLM use case | x402 per-inference payments, explicitly called out in hackathon docs |
-| B2C onboarding secondary track | Zero-friction MiniPay-native flow, cultural fit with chama/ajo/stokvel behavior |
-| Not in the rejected "DeFi solo builder" bucket | Team build, audited protocols only, AI-first positioning |
-| Ecosystem stack coverage | MiniPay + Self + ERC-8004 + x402 + celo/skills + agentscan — **6 official integrations** |
-| Simple and functional | Three-tap flow: verify → create → deposit. Agent takes it from there |
-| Ship-ability | Every component has a direct path to Celo Mainnet within the submission window |
+**Postur regulasi.** Semua surface berbayar adalah catur berbasis skill. Tidak ada RNG, tidak ada mekanik chance, tidak ada house edge lawan user. Ini postur yang sama yang bikin fantasy sports bisa beroperasi di pasar yang sports betting-nya tidak bisa.
 
 ## Roadmap
 
-**v1.0 — Hackathon Submission (April 2026)**
-Core flow shipped on Celo Mainnet. Three risk profiles. Four protocol adapters (Moola, Ubeswap, Mento, stCELO). Hybrid governance. x402-paid AI. Self verification. Telegram integration.
+**v0.1 — Submission Hackathon (April 2026)**
+Daily Puzzle dengan prize pool ter-sponsor, match micro-stake 1v1, Chess Club (mingguan), undangan nomor HP via SocialConnect, verifikasi Self, deploy di Celo Mainnet.
 
-**v1.1 — Social Proof Loop (Q3 2026)**
-Public leaderboard of top-performing groups (opt-in). Group-to-group benchmarking. Reputation portable via soulbound badges.
+**v0.2 — Coach Marketplace (Mei 2026)**
+Contract `CoachMarket` live. Registrasi coach ELO-gated. Flow coaching pakai voice note di dalam MiniApp.
 
-**v1.2 — Agent Personas (Q4 2026)**
-Admins can customize agent communication style (Coach, Analyst, Strategist). Cosmetic layer, same underlying allocation logic.
+**v0.3 — Turnamen (Juni 2026)**
+Bracket regional (East Africa, West Africa, SEA, LatAm). Prize pool tunai mingguan yang di-sponsor partner ekosistem Celo.
 
-**v2.0 — Expanded Protocol Universe (2027)**
-New adapters for additional audited Celo protocols as they launch. Governance-gated, always audited.
+**v0.4 — Chess960 & Puzzle Rush**
+Ekspansi format. Chess960 kasih variasi untuk returning player; Puzzle Rush jadi daily hook kedua.
 
-**v2.1 — Cross-Group Reputation**
-Members with strong streak badges unlock access to higher-trust groups. Imported via Self.
+**v1.0 — Open Tournament API (Q3 2026)**
+Brand dan DAO bisa sponsor turnamen branded via API publik. Treasury bayar, player bertanding, Gambit handle settlement.
 
-**v3.0 — Agent Marketplace**
-Third-party developers build specialized agent skills via `celo/skills`. Groups can subscribe to skill packages. Creators earn via x402.
+**v1.1 — Tools Kreator**
+Amatir kuat bisa publish puzzle set dan paket latihan untuk dijual. Creator economy di atas catur.
 
-## Getting Started
+**v2.0 — Reputasi Lintas-Game**
+ELO dan soulbound badge Gambit jadi identitas portable yang bisa di-gate oleh game Celo lain. Rating catur sebagai primitif reputasi Web3-native.
+
+## Memulai
 
 ```bash
-# Clone the repo
-git clone https://github.com/<your-org>/axon
-cd axon
+# Clone repo
+git clone https://github.com/<your-org>/gambit
+cd gambit
 
 # Install
 pnpm install
 
-# Configure environment
+# Konfigurasi environment
 cp .env.example .env
-# Required:
+# Wajib:
 #   CELO_RPC_URL, CELO_CHAIN_ID
-#   ANTHROPIC_API_KEY
 #   SUPABASE_URL, SUPABASE_ANON_KEY
-#   TELEGRAM_BOT_TOKEN
-#   X402_API_KEY
+#   ORACLE_SIGNER_KEY        (di-manage KMS, jangan commit)
+#   SOCIALCONNECT_ODIS_URL
 #   SELF_CLIENT_ID
-#   DEPLOYER_PRIVATE_KEY (use a dedicated wallet, never personal)
+#   DEPLOYER_PRIVATE_KEY     (wallet khusus, jangan pakai wallet pribadi)
 
-# Deploy contracts to Celo Sepolia
+# Deploy contract ke Celo Sepolia
 pnpm hardhat run scripts/deploy.ts --network celoSepolia
 
-# Run the MiniApp locally
+# Run MiniApp secara lokal
 pnpm dev
-# Test inside MiniPay: use a ngrok tunnel + "Custom MiniApp URL"
+# Tes di dalam MiniPay: expose via ngrok + "Custom MiniApp URL"
 
-# Run the contract test suite
+# Run test suite contract
 pnpm hardhat test
-pnpm forge test   # fuzz + invariant tests
+pnpm forge test   # fuzz + invariant test buat akuntansi escrow
 ```
 
-## Team
+## Struktur Project
 
-Axon is a team project for Celo Proof of Ship Season 2. Contributors handle smart contracts, AI agent engineering, frontend, and operations. Full team roster and Talent App profiles linked in the [Celo Proof of Ship page](https://talent.app/~/earn/celo-proof-of-ship).
+```
+gambit/
+├── apps/
+│   ├── miniapp/         # MiniApp Next.js (player-facing)
+│   └── server/          # Game server Hono + WebSocket
+├── packages/
+│   ├── contracts/       # Solidity + Hardhat + Foundry
+│   ├── sdk/             # TypeScript SDK (binding viem)
+│   ├── chess-engine/    # Wrapper chess.js + Stockfish WASM
+│   └── socialconnect/   # Helper resolusi nomor HP
+├── scripts/
+│   └── deploy.ts
+└── Docs_Hackaton.md
+```
 
-## Contributing
+## Tim
 
-Issues and PRs welcome. Design discussions happen in the [Celo Proof of Ship Telegram](https://t.me/proofofship). New protocol adapters are a high-priority contribution area — see `contracts/adapters/IProtocolAdapter.sol` for the interface.
+Gambit adalah project tim untuk Celo Proof of Ship Season 2. Kontributor menangani smart contract, game server, frontend, dan operasional. Daftar tim lengkap dan profil Talent App ada di [halaman Celo Proof of Ship](https://talent.app/~/earn/celo-proof-of-ship).
 
-## License
+## Kontribusi
 
-MIT. Build on it, fork it, remix it. The only thing we ask: don't charge users a subscription for what an AI agent can do per-inference via x402.
+Issue dan PR welcome. Diskusi desain di [Telegram Celo Proof of Ship](https://t.me/proofofship). Kontribusi prioritas tinggi: time control baru, heuristik anti-cheat tambahan, lokalisasi di luar EN/SW/YO/TL/ID, dan tooling integrasi sponsor untuk Daily Puzzle.
 
-## Acknowledgments
+## Lisensi
 
-The Celo Foundation and the Proof of Ship team for running a real onchain builder program. Opera MiniPay for meeting 14M stablecoin users where they already live. Thirdweb for x402 and making per-inference payments viable. Self for onchain humanity verification. Nuvia Finance for proving that solo-user AI yield farming deserves a social, group-native counterpart — this is that counterpart.
+MIT. Bangun di atasnya, fork, remix. Satu permintaan: kalau kamu ship competitor, pastikan lebih bagus untuk user yang kami coba jangkau.
+
+## Ucapan Terima Kasih
+
+Celo Foundation dan tim Proof of Ship atas program builder onchain yang nyata. Opera MiniPay karena menemui 7 juta+ user stablecoin di tempat mereka sudah ada. Tim chess.js dan Stockfish atas infrastruktur catur open-source yang bikin semua ini mungkin. Immortal Game dan OnChess karena explore ruang ini duluan — dan karena lewat contoh mereka menunjukkan, audiens mana yang masih belum punya produk yang dibangun untuk mereka.
 
 ---
 
-*Built for Celo Proof of Ship — Season 2, April 2026.*
+*Dibangun untuk Celo Proof of Ship — Season 2, April 2026.*
