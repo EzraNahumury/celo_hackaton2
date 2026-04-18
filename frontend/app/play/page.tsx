@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
 import { BoltIcon, ChevronLeft, PlayIcon, SparkleIcon } from "@/components/icons";
-import { formatCUsd, formatLocal } from "@/lib/format";
+import { useWallet } from "@/hooks/use-connect";
+import { useCreateMatch } from "@/hooks/use-match-escrow";
+import { CONTRACTS_CONFIGURED, tcLabelToSeconds, MATCH_FEE_BPS } from "@/lib/contracts";
+import { formatCelo, formatLocal, truncateAddress } from "@/lib/format";
 
 const STAKES = [
   { value: 0.5, label: "0.50" },
@@ -19,20 +23,48 @@ const TIME_CONTROLS = [
   { value: "5+3", label: "Rapid", sub: "5 + 3" },
 ] as const;
 
-const FEE = 0.03;
-
 export default function PlayPage() {
   const router = useRouter();
+  const { address, isConnected, connect, isConnecting } = useWallet();
+  const { createMatch, isPending: creating, hash } = useCreateMatch();
+  const { status } = useTxStatus(hash);
+
   const [stake, setStake] = useState<number>(1.0);
   const [tc, setTc] = useState<string>("3+0");
-  const [starting, setStarting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  const potential = stake * 2 * (1 - FEE);
+  const pot = stake * 2;
+  const fee = (pot * MATCH_FEE_BPS) / 10_000;
+  const potential = pot - fee;
 
-  const onStart = () => {
-    setStarting(true);
-    setTimeout(() => router.push(`/game?stake=${stake}&tc=${tc}`), 450);
+  const onCreate = async () => {
+    setErr(null);
+    try {
+      if (!isConnected) {
+        connect();
+        return;
+      }
+      if (!CONTRACTS_CONFIGURED) {
+        router.push(`/game?stake=${stake}&tc=${tc}&preview=1`);
+        return;
+      }
+      await createMatch({
+        timeControlSeconds: tcLabelToSeconds(tc),
+        stakeCelo: stake,
+      });
+      router.push(`/lobby?created=1&stake=${stake}&tc=${tc}`);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
   };
+
+  const btnLabel = !isConnected
+    ? "Connect MiniPay"
+    : status === "pending"
+    ? "Konfirmasi di wallet…"
+    : creating
+    ? "Membuat match…"
+    : `Buat match · ${formatLocal(stake, "IDR")}`;
 
   return (
     <main className="flex-1">
@@ -46,7 +78,12 @@ export default function PlayPage() {
             <ChevronLeft size={18} />
           </Link>
           <p className="text-sm font-bold">Main 1v1</p>
-          <span className="h-9 w-9" />
+          <Link
+            href="/lobby"
+            className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold"
+          >
+            Lobby
+          </Link>
         </header>
 
         <section className="mt-6 text-center fade-in-up">
@@ -57,7 +94,7 @@ export default function PlayPage() {
             {formatLocal(potential, "IDR")}
           </h1>
           <p className="mt-1 text-xs text-white/80">
-            Pot {formatCUsd(stake * 2)} · dipotong 3% fee
+            Pot {formatCelo(pot)} · fee {(MATCH_FEE_BPS / 100).toFixed(0)}%
           </p>
         </section>
       </div>
@@ -65,7 +102,7 @@ export default function PlayPage() {
       <div className="px-5 pb-8">
         <section className="card -mt-5 p-5 relative z-10">
           <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-            Pilih Stake
+            Pilih Stake (CELO)
           </h2>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {STAKES.map((s) => {
@@ -89,7 +126,7 @@ export default function PlayPage() {
                       active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-ink-0)]"
                     }`}
                   >
-                    {s.label} cUSD
+                    {s.label} CELO
                   </p>
                   <p className="text-[11px] text-[color:var(--color-ink-2)]">
                     {formatLocal(s.value, "IDR")}
@@ -100,7 +137,7 @@ export default function PlayPage() {
           </div>
 
           <h2 className="mt-6 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-            Kecepatan
+            Kecepatan (on-chain: {tcLabelToSeconds(tc)}s)
           </h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {TIME_CONTROLS.map((t) => {
@@ -133,38 +170,58 @@ export default function PlayPage() {
         <section className="card mt-4 p-4">
           <div className="flex items-center gap-2">
             <SparkleIcon size={16} className="text-[color:var(--color-primary)]" />
-            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
-              Cara Kerja
-            </p>
+            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">Flow on-chain</p>
           </div>
-          <ul className="mt-2 space-y-1 text-[11px] text-[color:var(--color-ink-2)]">
-            <li>· Kedua pemain deposit stake ke MatchEscrow di Celo</li>
-            <li>· Pemenang ambil pot minus fee 3%</li>
-            <li>· Refund penuh kalau tidak dapat lawan dalam 5 menit</li>
-          </ul>
+          <ol className="mt-2 space-y-1 text-[11px] text-[color:var(--color-ink-2)]">
+            <li>1. <code>createMatch(tc)</code> — stake masuk MatchEscrow</li>
+            <li>2. Share match ID → lawan <code>joinMatch(id)</code> dengan stake yang sama</li>
+            <li>3. Oracle sign hasil → <code>settleMatch</code> auto-payout</li>
+            <li className="text-[color:var(--color-ink-3)]">
+              Pemenang pertama auto-mint badge <b>FIRST_WIN</b> 🏆
+            </li>
+          </ol>
         </section>
+
+        {address && (
+          <p className="mt-3 text-center text-[11px] text-[color:var(--color-ink-2)]">
+            Wallet: <span className="font-mono">{truncateAddress(address)}</span>
+          </p>
+        )}
+
+        {err && (
+          <p className="mt-3 rounded-xl border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger-soft)] px-3 py-2 text-[11px] text-[color:var(--color-danger)]">
+            {err}
+          </p>
+        )}
 
         <button
           type="button"
-          onClick={onStart}
-          disabled={starting}
+          onClick={onCreate}
+          disabled={creating || isConnecting || status === "pending"}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--color-primary)] py-4 text-base font-bold text-white shadow-[var(--shadow-glow-primary)] transition-all active:scale-[0.99] disabled:opacity-70"
         >
-          {starting ? (
+          {creating || isConnecting || status === "pending" ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              Mencari lawan…
+              {btnLabel}
             </>
           ) : (
             <>
               <PlayIcon size={18} />
-              Main untuk {formatLocal(stake, "IDR")}
+              {btnLabel}
             </>
           )}
         </button>
+
+        {hash && (
+          <p className="mt-3 text-center">
+            <TxExplorerLink hash={hash} />
+          </p>
+        )}
+
         <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-[color:var(--color-ink-2)]">
           <BoltIcon size={12} className="text-[color:var(--color-amber)]" />
-          Rata-rata dapat lawan · 4 detik
+          Stake di-escrow di MatchEscrow · Celo
         </p>
       </div>
     </main>

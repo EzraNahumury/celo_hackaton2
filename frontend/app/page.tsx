@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useWallet } from "@/hooks/use-connect";
 
 type Feature = {
   key: "play" | "puzzle" | "club";
@@ -49,21 +50,35 @@ const FEATURES: Feature[] = [
 
 export default function WelcomePage() {
   const router = useRouter();
+  const { isConnected, connect: connectWallet, isConnecting } = useWallet();
   const [idx, setIdx] = useState(0);
-  const [busy, setBusy] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const current = FEATURES[idx];
   const prev = FEATURES[(idx - 1 + FEATURES.length) % FEATURES.length];
   const next = FEATURES[(idx + 1) % FEATURES.length];
 
   const dots = useMemo(() => generateDots(28), []);
+  const busy = isConnecting || pendingHref !== null;
+
+  // Navigate after connection completes — safer than setTimeout + router.push,
+  // which can race with unmount in Next.js 16 Turbopack dev overlay.
+  useEffect(() => {
+    if (isConnected && pendingHref) {
+      const href = pendingHref;
+      setPendingHref(null);
+      router.push(href);
+    }
+  }, [isConnected, pendingHref, router]);
 
   const connect = (toHref?: string) => {
-    setBusy(true);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("gambit:addr", "0x8f2e1ad5aef9c3ea44a4e0c47f8a39bc4d21c4a1");
+    const href = toHref ?? "/home";
+    if (isConnected) {
+      router.push(href);
+      return;
     }
-    setTimeout(() => router.push(toHref ?? "/home"), 500);
+    setPendingHref(href);
+    connectWallet();
   };
 
   return (

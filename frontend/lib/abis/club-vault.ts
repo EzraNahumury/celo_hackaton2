@@ -1,0 +1,121 @@
+export const clubVaultAbi = [
+  {
+    type: "function",
+    name: "createClub",
+    stateMutability: "payable",
+    inputs: [{ name: "maxMembers", type: "uint256" }],
+    outputs: [{ name: "clubId", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "joinClub",
+    stateMutability: "payable",
+    inputs: [{ name: "clubId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "startNewWeek",
+    stateMutability: "payable",
+    inputs: [{ name: "clubId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "settle",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "clubId", type: "uint256" },
+      { name: "first", type: "address" },
+      { name: "second", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "clubCount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "clubs",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }],
+    outputs: [
+      { name: "creator", type: "address" },
+      { name: "buyIn", type: "uint256" },
+      { name: "maxMembers", type: "uint256" },
+      { name: "weekStart", type: "uint256" },
+      { name: "pot", type: "uint256" },
+      { name: "state", type: "uint8" },
+    ],
+  },
+  {
+    type: "function",
+    name: "isMember",
+    stateMutability: "view",
+    inputs: [
+      { type: "uint256" },
+      { type: "address" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "getMembers",
+    stateMutability: "view",
+    inputs: [{ name: "clubId", type: "uint256" }],
+    outputs: [{ type: "address[]" }],
+  },
+  {
+    type: "function",
+    name: "memberCount",
+    stateMutability: "view",
+    inputs: [{ name: "clubId", type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "carryover",
+    stateMutability: "view",
+    inputs: [{ type: "uint256" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "event",
+    name: "ClubCreated",
+    inputs: [
+      { indexed: true, name: "clubId", type: "uint256" },
+      { indexed: true, name: "creator", type: "address" },
+      { indexed: false, name: "buyIn", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
+    name: "MemberJoined",
+    inputs: [
+      { indexed: true, name: "clubId", type: "uint256" },
+      { indexed: true, name: "member", type: "address" },
+    ],
+  },
+  {
+    type: "event",
+    name: "ClubSettled",
+    inputs: [
+      { indexed: true, name: "clubId", type: "uint256" },
+      { indexed: false, name: "first", type: "address" },
+      { indexed: false, name: "second", type: "address" },
+      { indexed: false, name: "roll", type: "uint256" },
+    ],
+  },
+  {
+    type: "event",
+    name: "ClubNewWeek",
+    inputs: [
+      { indexed: true, name: "clubId", type: "uint256" },
+      { indexed: false, name: "weekStart", type: "uint256" },
+    ],
+  },
+] as const;

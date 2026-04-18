@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Chessboard } from "@/components/chessboard";
 import { ChevronLeft, FlagIcon, TrophyIcon } from "@/components/icons";
-import { formatCUsd, formatLocal } from "@/lib/format";
+import { formatCelo, formatLocal } from "@/lib/format";
 
 type Result = "win" | "lose" | "draw";
 
@@ -112,7 +112,7 @@ export function GameScreen() {
               {formatLocal(potential, "IDR")}
             </p>
             <p className="text-[11px] text-[color:var(--color-ink-2)]">
-              Stake {formatCUsd(stake)} · di escrow
+              Stake {formatCelo(stake)} · di escrow
             </p>
           </div>
           <div className="flex gap-2">
