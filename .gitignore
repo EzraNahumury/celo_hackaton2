@@ -1,0 +1,23 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings
+.claude/settings.local.json
+settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Node.js (if frontend is added later)
+node_modules/
+dist/
+.next/

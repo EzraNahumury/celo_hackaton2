@@ -1,0 +1,3 @@
+[submodule "sc_celo_gambit/lib/openzeppelin-contracts"]
+	path = sc_celo_gambit/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
