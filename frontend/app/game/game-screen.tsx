@@ -1,8 +1,9 @@
 "use client";
 
+import { Chess, type Color, type Square } from "chess.js";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Chessboard } from "@/components/chessboard";
 import { ChevronLeft, FlagIcon, TrophyIcon } from "@/components/icons";
 import { formatCelo, formatLocal } from "@/lib/format";
@@ -10,6 +11,9 @@ import { formatCelo, formatLocal } from "@/lib/format";
 type Result = "win" | "lose" | "draw";
 
 const FEE = 0.03;
+const PLAYER_COLOR: Color = "w";
+const BOT_THINK_MS = 650;
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 function parseTc(tc: string): { base: number; inc: number } {
   const [m, s] = tc.split("+").map(Number);
@@ -23,37 +27,136 @@ function fmtClock(secs: number): string {
   return `${mm}:${ss}`;
 }
 
+function findKingSquare(chess: Chess, color: Color): Square | null {
+  const board = chess.board();
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const cell = board[r][c];
+      if (cell && cell.type === "k" && cell.color === color) {
+        const file = String.fromCharCode(97 + c);
+        const rank = 8 - r;
+        return `${file}${rank}` as Square;
+      }
+    }
+  }
+  return null;
+}
+
+function detectResult(next: Chess): Result | null {
+  if (next.isCheckmate()) return next.turn() === PLAYER_COLOR ? "lose" : "win";
+  if (
+    next.isStalemate() ||
+    next.isInsufficientMaterial() ||
+    next.isThreefoldRepetition() ||
+    next.isDraw()
+  ) {
+    return "draw";
+  }
+  return null;
+}
+
 export function GameScreen() {
   const params = useSearchParams();
   const router = useRouter();
   const stake = Number(params.get("stake") ?? "1");
   const tc = params.get("tc") ?? "3+0";
-  const { base } = parseTc(tc);
+  const { base, inc } = parseTc(tc);
 
+  const [fen, setFen] = useState<string>(START_FEN);
   const [whiteTime, setWhiteTime] = useState(base);
   const [blackTime, setBlackTime] = useState(base);
-  const [turn, setTurn] = useState<"w" | "b">("w");
   const [result, setResult] = useState<Result | null>(null);
-  const [moveCount, setMoveCount] = useState(0);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
 
+  const chess = useMemo(() => new Chess(fen), [fen]);
+  const turn = chess.turn();
+  const moveCount = chess.history().length;
+
+  const inCheckSquare = useMemo(() => {
+    if (!chess.inCheck()) return null;
+    return findKingSquare(chess, chess.turn());
+  }, [chess]);
+
+  const tryMove = useCallback(
+    (from: Square, to: Square): boolean => {
+      if (result) return false;
+      if (chess.turn() !== PLAYER_COLOR) return false;
+      const next = new Chess(chess.fen());
+      let move;
+      try {
+        move = next.move({ from, to, promotion: "q" });
+      } catch {
+        return false;
+      }
+      if (!move) return false;
+      setWhiteTime((t) => t + inc);
+      setLastMove({ from: move.from as Square, to: move.to as Square });
+      setFen(next.fen());
+      const r = detectResult(next);
+      if (r) setResult(r);
+      return true;
+    },
+    [chess, result, inc],
+  );
+
+  const legalMovesFrom = useCallback(
+    (sq: Square): Square[] => {
+      if (chess.turn() !== PLAYER_COLOR) return [];
+      return chess.moves({ square: sq, verbose: true }).map((m) => m.to as Square);
+    },
+    [chess],
+  );
+
+  // Bot plays black: after the position flips to black's turn, schedule a random reply.
   useEffect(() => {
     if (result) return;
-    tickRef.current = setInterval(() => {
-      if (turn === "w") setWhiteTime((t) => Math.max(0, t - 1));
-      else setBlackTime((t) => Math.max(0, t - 1));
-    }, 1000);
-    return () => {
-      if (tickRef.current) clearInterval(tickRef.current);
-    };
-  }, [turn, result]);
+    if (chess.turn() === PLAYER_COLOR) return;
+    if (chess.isGameOver()) return;
+    const t = setTimeout(() => {
+      const next = new Chess(chess.fen());
+      const moves = next.moves({ verbose: true });
+      if (moves.length === 0) return;
+      const pick = moves[Math.floor(Math.random() * moves.length)];
+      next.move({ from: pick.from, to: pick.to, promotion: "q" });
+      setBlackTime((t2) => t2 + inc);
+      setLastMove({ from: pick.from as Square, to: pick.to as Square });
+      setFen(next.fen());
+      const r = detectResult(next);
+      if (r) setResult(r);
+    }, BOT_THINK_MS);
+    return () => clearTimeout(t);
+  }, [chess, result, inc]);
 
-  const passTurn = () => {
-    setTurn((t) => (t === "w" ? "b" : "w"));
-    setMoveCount((n) => n + 1);
+  // Clock tick — decrements whoever's turn it is.
+  useEffect(() => {
+    if (result) return;
+    const id = setInterval(() => {
+      if (chess.turn() === "w") {
+        setWhiteTime((t) => {
+          if (t <= 1) {
+            setResult("lose");
+            return 0;
+          }
+          return t - 1;
+        });
+      } else {
+        setBlackTime((t) => {
+          if (t <= 1) {
+            setResult("win");
+            return 0;
+          }
+          return t - 1;
+        });
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [chess, result]);
+
+  const onResign = () => {
+    if (result) return;
+    setResult("lose");
   };
 
-  const onResign = () => setResult("lose");
   const potential = stake * 2 * (1 - FEE);
 
   return (
@@ -88,11 +191,21 @@ export function GameScreen() {
           name="Lawan · 0x5a…9c"
           rating={1412}
           time={blackTime}
-          active={turn === "b"}
+          active={turn === "b" && !result}
         />
 
         <div className="mt-3">
-          <Chessboard orientation="white" />
+          <Chessboard
+            fen={fen}
+            orientation="white"
+            turn={turn}
+            playerColor={PLAYER_COLOR}
+            disabled={!!result}
+            onMove={tryMove}
+            legalMovesFrom={legalMovesFrom}
+            lastMove={lastMove ?? undefined}
+            inCheckSquare={inCheckSquare}
+          />
         </div>
 
         <PlayerBar
@@ -100,7 +213,7 @@ export function GameScreen() {
           name="Kamu"
           rating={1380}
           time={whiteTime}
-          active={turn === "w"}
+          active={turn === "w" && !result}
         />
 
         <div className="card mt-4 flex items-center justify-between px-4 py-3">
@@ -115,21 +228,15 @@ export function GameScreen() {
               Stake {formatCelo(stake)} · di escrow
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={passTurn}
-              className="rounded-full bg-[color:var(--color-sky-100)] px-4 py-2 text-xs font-bold text-[color:var(--color-ink-1)] hover:bg-[color:var(--color-primary-100)]"
-            >
-              Move ({moveCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setResult("win")}
-              className="rounded-full bg-[color:var(--color-primary)] px-4 py-2 text-xs font-bold text-white shadow-[var(--shadow-glow-primary)]"
-            >
-              Demo · Menang
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            <span className="rounded-full bg-[color:var(--color-sky-100)] px-3 py-1 text-[11px] font-semibold text-[color:var(--color-ink-1)]">
+              Move {Math.ceil(moveCount / 2) || 1} · {turn === "w" ? "Kamu" : "Lawan"}
+            </span>
+            {chess.inCheck() && !result && (
+              <span className="rounded-full bg-[color:var(--color-danger-soft)] px-3 py-1 text-[11px] font-bold text-[color:var(--color-danger)]">
+                Skak!
+              </span>
+            )}
           </div>
         </div>
       </div>
