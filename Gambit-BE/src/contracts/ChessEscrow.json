@@ -1,0 +1,44 @@
+[
+  {
+    "inputs": [
+      { "name": "gameId", "type": "bytes32" },
+      { "name": "winner", "type": "address" },
+      { "name": "player1", "type": "address" },
+      { "name": "player2", "type": "address" }
+    ],
+    "name": "resolveGame",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "name": "gameId", "type": "bytes32" },
+      { "name": "player", "type": "address" }
+    ],
+    "name": "refundStake",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "gameId", "type": "bytes32" },
+      { "indexed": true, "name": "player", "type": "address" },
+      { "indexed": false, "name": "amount", "type": "uint256" }
+    ],
+    "name": "StakeDeposited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "gameId", "type": "bytes32" },
+      { "indexed": true, "name": "winner", "type": "address" },
+      { "indexed": false, "name": "amount", "type": "uint256" }
+    ],
+    "name": "GameResolved",
+    "type": "event"
+  }
+]
