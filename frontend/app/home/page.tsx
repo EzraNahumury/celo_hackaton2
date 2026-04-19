@@ -29,8 +29,8 @@ export default function HomePage() {
   return (
     <>
       <div className="bg-hero rounded-b-[32px] px-5 pt-[max(env(safe-area-inset-top),20px)] pb-8 text-white">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <header className="grid grid-cols-[1fr_auto_1fr] items-center">
+          <div className="flex items-center gap-2 justify-self-start">
             <span
               className={`h-2 w-2 rounded-full ${
                 isConnected ? "bg-emerald-300" : "bg-amber-300"
@@ -40,10 +40,10 @@ export default function HomePage() {
               {ACTIVE_CHAIN.name}
             </span>
           </div>
-          <p className="text-lg font-extrabold tracking-tight">Gambit</p>
+          <p className="text-lg font-extrabold tracking-tight text-center">Gambit</p>
           <Link
             href="/profile"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-[11px] font-bold"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-[11px] font-bold justify-self-end"
           >
             {address ? address.slice(2, 4).toUpperCase() : "—"}
           </Link>

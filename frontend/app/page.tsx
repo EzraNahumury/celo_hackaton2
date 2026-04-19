@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/hooks/use-connect";
+import { useConnectDialog } from "@/providers/web3-provider";
 
 type Feature = {
   key: "play" | "puzzle" | "club";
@@ -50,7 +51,8 @@ const FEATURES: Feature[] = [
 
 export default function WelcomePage() {
   const router = useRouter();
-  const { isConnected, connect: connectWallet, isConnecting } = useWallet();
+  const { isConnected, isConnecting, connect: openPicker } = useWallet();
+  const { open: pickerOpen } = useConnectDialog();
   const [idx, setIdx] = useState(0);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
@@ -61,24 +63,24 @@ export default function WelcomePage() {
   const dots = useMemo(() => generateDots(28), []);
   const busy = isConnecting || pendingHref !== null;
 
-  // Navigate after connection completes — safer than setTimeout + router.push,
-  // which can race with unmount in Next.js 16 Turbopack dev overlay.
   useEffect(() => {
-    if (isConnected && pendingHref) {
+    if (isConnected && pendingHref && !pickerOpen) {
       const href = pendingHref;
       setPendingHref(null);
       router.push(href);
     }
-  }, [isConnected, pendingHref, router]);
+  }, [isConnected, pendingHref, pickerOpen, router]);
+
+  useEffect(() => {
+    if (!pickerOpen && pendingHref && !isConnected) {
+      setPendingHref(null);
+    }
+  }, [pickerOpen, pendingHref, isConnected]);
 
   const connect = (toHref?: string) => {
     const href = toHref ?? "/home";
-    if (isConnected) {
-      router.push(href);
-      return;
-    }
     setPendingHref(href);
-    connectWallet();
+    openPicker();
   };
 
   return (
@@ -96,7 +98,7 @@ export default function WelcomePage() {
 
       <TopBar />
 
-      <div className="relative z-10 px-6 pt-2">
+      <div className="relative z-10 px-6 pt-2 text-left">
         <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/60">
           MiniPay · Celo
         </p>
@@ -133,10 +135,10 @@ export default function WelcomePage() {
           {busy ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              Menghubungkan MiniPay…
+              Menghubungkan…
             </>
           ) : (
-            <>Masuk dengan MiniPay</>
+            <>Hubungkan Wallet</>
           )}
         </button>
       </div>

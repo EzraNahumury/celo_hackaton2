@@ -1,20 +1,25 @@
 "use client";
 
 import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { injected } from "wagmi/connectors";
+import type { Connector } from "wagmi";
+import { useConnectDialog } from "@/providers/web3-provider";
 
 export function useWallet() {
-  const { address, isConnected, chain } = useAccount();
-  const { connect, isPending, error } = useConnect();
+  const { address, isConnected, chain, connector } = useAccount();
+  const { connect, connectors, isPending, error } = useConnect();
   const { disconnect } = useDisconnect();
+  const { openPicker } = useConnectDialog();
 
-  const connectMiniPay = () => connect({ connector: injected({ shimDisconnect: true }) });
+  const connectWith = (c: Connector) => connect({ connector: c });
 
   return {
     address,
     isConnected,
     chain,
-    connect: connectMiniPay,
+    connector,
+    connectors,
+    connect: openPicker,
+    connectWith,
     disconnect,
     isConnecting: isPending,
     error,

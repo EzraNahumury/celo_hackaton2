@@ -106,7 +106,7 @@ export function Chessboard({
   const lastToRc = lastMove ? squareToRc(lastMove.to, orientation) : null;
 
   return (
-    <div className="relative aspect-square w-full">
+    <div className="relative mx-auto aspect-square w-[min(100%,440px)]">
       <div
         aria-hidden
         className="absolute -inset-2 -z-10 rounded-[28px] blur-2xl opacity-70"
@@ -116,7 +116,7 @@ export function Chessboard({
         }}
       />
       <div
-        className="grid h-full w-full grid-cols-8 overflow-hidden rounded-[22px] border border-[color:var(--color-border-strong)] bg-white"
+        className="grid h-full w-full grid-cols-8 grid-rows-8 overflow-hidden rounded-[22px] border border-[color:var(--color-border-strong)] bg-white"
         style={{ boxShadow: "var(--shadow-raised)" }}
       >
         {board.map((row, r) =>
@@ -139,7 +139,7 @@ export function Chessboard({
                 disabled={!interactive}
                 aria-label={sq}
                 className={[
-                  "relative flex items-center justify-center text-[7.5vw] sm:text-[34px] leading-none select-none",
+                  "relative flex items-center justify-center text-[34px] leading-none select-none",
                   "transition-colors",
                   dark ? "bg-[#b6d0f2]" : "bg-[#f0f7ff]",
                   isLastFrom || isLastTo

@@ -95,10 +95,11 @@ const CONTRACT_META: ContractMeta[] = [
 ];
 
 export default function ProfilePage() {
-  const { address, isConnected, connect, isConnecting, disconnect } = useWallet();
+  const { address, isConnected, connect, isConnecting, disconnect, connector } = useWallet();
   const { data: bal } = useBalance({ address, query: { enabled: !!address } });
   const { badges } = usePlayerBadges(address);
   const [copied, setCopied] = useState<string | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const fairPlayHeld = Boolean(badges[4]?.owned);
 
@@ -146,9 +147,14 @@ export default function ProfilePage() {
           ) : (
             <button
               type="button"
-              onClick={() => disconnect()}
-              className="mt-4 w-full rounded-2xl border border-[color:var(--color-border)] bg-white py-3 text-sm font-bold text-[color:var(--color-ink-1)]"
+              onClick={() => setConfirmDisconnect(true)}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[color:var(--color-danger)]/40 bg-[color:var(--color-danger-soft)] py-3 text-sm font-bold text-[color:var(--color-danger)] transition active:scale-[0.99] hover:bg-[color:var(--color-danger)] hover:text-white"
             >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg>
               Disconnect
             </button>
           )}
@@ -279,6 +285,98 @@ export default function ProfilePage() {
         </section>
       </main>
       <BottomNav />
+
+      {confirmDisconnect && address && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--color-ink-0)]/55 p-4 backdrop-blur-sm sm:items-center"
+          onClick={() => setConfirmDisconnect(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl border border-[color:var(--color-border)] bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setConfirmDisconnect(false)}
+              aria-label="Tutup"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--color-surface-soft)] text-[color:var(--color-ink-2)] transition hover:bg-[color:var(--color-border)]"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+
+            <div className="flex flex-col items-center">
+              <span
+                className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full shadow-[var(--shadow-glow-primary)]"
+                style={{
+                  background: connector?.icon
+                    ? "white"
+                    : "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)",
+                }}
+              >
+                {connector?.icon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={connector.icon}
+                    alt={connector.name ?? "Wallet"}
+                    className="h-16 w-16 object-contain"
+                  />
+                ) : (
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-white">
+                    <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" />
+                    <path d="M3 7v11a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+                    <path d="M21 10h-5a2 2 0 0 0 0 4h5a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1z" />
+                    <circle cx="16.5" cy="12" r="1" fill="currentColor" stroke="none" />
+                  </svg>
+                )}
+              </span>
+
+              <p className="mt-4 font-mono text-sm font-bold text-[color:var(--color-ink-0)]">
+                {truncateAddress(address, 6, 4)}
+              </p>
+
+              <p className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[color:var(--color-primary)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)]" />
+                {bal ? formatCeloWei(bal.value, 3) : "0 CELO"} · Gas
+              </p>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => onCopy(address)}
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)] px-3 py-4 text-[color:var(--color-ink-0)] transition active:scale-[0.98] hover:border-[color:var(--color-primary-200)] hover:bg-[color:var(--color-primary-50)]"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-[color:var(--color-primary)]">
+                  <rect x="9" y="9" width="12" height="12" rx="2" />
+                  <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+                </svg>
+                <span className="text-xs font-bold">
+                  {copied === address ? "Tersalin!" : "Copy Address"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  disconnect();
+                  setConfirmDisconnect(false);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger-soft)] px-3 py-4 text-[color:var(--color-danger)] transition active:scale-[0.98] hover:bg-[color:var(--color-danger)] hover:text-white"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="2" y="6" width="20" height="12" rx="2" />
+                  <path d="M16 12h4" />
+                  <path d="M8 12h.01" />
+                </svg>
+                <span className="text-xs font-bold">Disconnect</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
