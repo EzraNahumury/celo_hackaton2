@@ -3,9 +3,9 @@ import { validateMove, getTurn } from "./chessEngine";
 import { switchTurn as clockSwitchTurn, startClock, stopClock, getTimeRemaining } from "./clockService";
 import { calculateElo } from "./eloService";
 import { getPlayer, updatePlayerStats, updatePlayerRating } from "./playerService";
-import { resolveGame as resolveOnChain } from "./escrowService";
+import { settleMatch as settleOnChain, cancelMatch as cancelOnChain } from "./escrowService";
 import { getBestMove } from "./stockfish";
-import { normalizeAddress, generateOnchainGameId, parseTimeControl } from "../utils/helpers";
+import { normalizeAddress, parseTimeControl } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { Game, MoveResult, GameResult } from "../types";
 
@@ -88,14 +88,9 @@ export async function createGame(
 
   const game = data as Game;
 
-  // Generate onchain game id
-  const onchainGameId = generateOnchainGameId(game.id);
-  await supabase
-    .from("games")
-    .update({ onchain_game_id: onchainGameId })
-    .eq("id", game.id);
-
-  game.onchain_game_id = onchainGameId;
+  // onchain_game_id is set by the MatchCreated event handler (escrowService.watchMatchEvents)
+  // once the player calls MatchEscrow.createMatch on-chain and the event is picked up.
+  // For bot games there is no on-chain match, so it stays null.
 
   if (isBotGame) {
     startClock(game.id, timeControl, (color) => handleTimeout(game.id, color));
@@ -313,8 +308,9 @@ async function handleGameEnd(game: Game, result: GameResult): Promise<void> {
     await updatePlayerRating(game.white_address, elo.newWinnerRating);
     await updatePlayerRating(game.black_address, elo.newLoserRating);
   } else {
+    // matchFeeBps = 300 (3%) per GambitHub default
     const stake = Number(game.stake_amount);
-    const payout = stake * 2 * 0.95; // 5% fee
+    const payout = stake * 2 * 0.97; // 3% fee matches GambitHub.matchFeeBps = 300
     await updatePlayerStats(winnerAddr, "win", payout);
     await updatePlayerStats(loserAddr, "loss");
     await updatePlayerRating(
@@ -325,6 +321,17 @@ async function handleGameEnd(game: Game, result: GameResult): Promise<void> {
       loserAddr,
       result === "white_win" ? elo.newLoserRating : elo.newWinnerRating
     );
+  }
+
+  // Settle on-chain if we have the on-chain matchId
+  if (game.onchain_game_id) {
+    const matchId = BigInt(game.onchain_game_id);
+    const stake = Number(game.stake_amount);
+    const payout = isDraw ? 0 : stake * 2 * 0.97;
+    const onchainWinner = isDraw
+      ? ("0x0000000000000000000000000000000000000000" as `0x${string}`)
+      : (winnerAddr as `0x${string}`);
+    await settleOnChain(game.id, matchId, onchainWinner, payout);
   }
 }
 

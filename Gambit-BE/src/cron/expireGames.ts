@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import { supabase } from "../config/supabase";
-import { refundStake } from "../services/escrowService";
+import { cancelMatch } from "../services/escrowService";
 import { logger } from "../utils/logger";
 
 export function startExpireGamesCron(): void {
@@ -26,10 +26,13 @@ export function startExpireGamesCron(): void {
         logger.info(`Expired ${data.length} stale games`);
 
         for (const game of data) {
+          // cancelMatch only works for Pending state (no playerB yet).
+          // If onchain_game_id is present the match was created on-chain and
+          // can be cancelled while still Pending (waiting for playerB to join).
           if (game.onchain_game_id && game.white_address) {
-            await refundStake(
+            await cancelMatch(
               game.id,
-              game.onchain_game_id as `0x${string}`,
+              BigInt(game.onchain_game_id),
               game.white_address as `0x${string}`
             );
           }

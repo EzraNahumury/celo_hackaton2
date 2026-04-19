@@ -95,14 +95,23 @@ router.post("/create", authMiddleware, async (req: Request, res: Response): Prom
 
     const game = await createGame(req.playerAddress!, stakeNum, timeControl, color, mode);
 
+    // FE should call MatchEscrow.createMatch(timeControlSeconds) with value = stakeWei
+    // The BE event watcher (MatchCreated) will pick up the emitted matchId and link it here
+    const { parseTimeControl } = await import("../utils/helpers");
+    const { timeMs } = parseTimeControl(timeControl);
+    const timeControlSeconds = Math.floor(timeMs / 1000);
+
     res.status(201).json({
       gameId: game.id,
-      onchainGameId: game.onchain_game_id,
       status: game.status,
+      // Guide FE to make the on-chain deposit via MatchEscrow.createMatch
       depositTx: {
-        to: process.env.CHESS_ESCROW_ADDRESS || null,
-        functionName: "depositStake",
-        args: [game.onchain_game_id, stake],
+        to: process.env.MATCH_ESCROW_ADDRESS || null,
+        functionName: "createMatch",
+        // FE calls: matchEscrow.createMatch(timeControlSeconds, { value: stakeWei })
+        args: [timeControlSeconds],
+        // FE must set msg.value = stakeWei (convert CELO to wei: stake * 1e18)
+        value: `${Math.round(parseFloat(stake) * 1e18)}`,
       },
     });
   } catch (err) {
@@ -164,15 +173,19 @@ router.post("/join", authMiddleware, async (req: Request, res: Response): Promis
 
     const game = await joinGame(gameId, req.playerAddress!);
 
+    // FE should call MatchEscrow.joinMatch(matchId) with value = stakeWei
+    // matchId is game.onchain_game_id (uint256 stored as string)
     res.json({
       gameId: game.id,
       white: game.white_address,
       black: game.black_address,
       stake: game.stake_amount,
       depositTx: {
-        to: process.env.CHESS_ESCROW_ADDRESS || null,
-        functionName: "depositStake",
-        args: [game.onchain_game_id, game.stake_amount.toString()],
+        to: process.env.MATCH_ESCROW_ADDRESS || null,
+        functionName: "joinMatch",
+        // FE calls: matchEscrow.joinMatch(matchId, { value: stakeWei })
+        args: [game.onchain_game_id],
+        value: `${Math.round(game.stake_amount * 1e18)}`,
       },
     });
   } catch (err) {

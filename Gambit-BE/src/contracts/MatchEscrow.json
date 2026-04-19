@@ -1,0 +1,134 @@
+[
+  {
+    "inputs": [{ "name": "_hub", "type": "address" }],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [{ "name": "timeControl", "type": "uint256" }],
+    "name": "createMatch",
+    "outputs": [{ "name": "matchId", "type": "uint256" }],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "name": "matchId", "type": "uint256" }],
+    "name": "joinMatch",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "name": "matchId", "type": "uint256" },
+      { "name": "winner", "type": "address" },
+      { "name": "sig", "type": "bytes" }
+    ],
+    "name": "settleMatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "name": "matchId", "type": "uint256" }],
+    "name": "cancelMatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "name": "matchId", "type": "uint256" },
+      { "name": "lastStateSig", "type": "bytes" }
+    ],
+    "name": "claimForfeit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "name": "matchId", "type": "uint256" }],
+    "name": "matches",
+    "outputs": [
+      { "name": "playerA", "type": "address" },
+      { "name": "playerB", "type": "address" },
+      { "name": "stake", "type": "uint256" },
+      { "name": "createdAt", "type": "uint256" },
+      { "name": "timeControl", "type": "uint256" },
+      { "name": "state", "type": "uint8" },
+      { "name": "winner", "type": "address" },
+      { "name": "feesForwarded", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "name": "matchId", "type": "uint256" }],
+    "name": "resultSubmitted",
+    "outputs": [{ "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "matchCount",
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "FORFEIT_GRACE",
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "matchId", "type": "uint256" },
+      { "indexed": true, "name": "playerA", "type": "address" },
+      { "indexed": false, "name": "stake", "type": "uint256" }
+    ],
+    "name": "MatchCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "matchId", "type": "uint256" },
+      { "indexed": true, "name": "playerB", "type": "address" }
+    ],
+    "name": "MatchJoined",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "matchId", "type": "uint256" },
+      { "indexed": true, "name": "winner", "type": "address" },
+      { "indexed": false, "name": "payout", "type": "uint256" }
+    ],
+    "name": "MatchSettled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{ "indexed": true, "name": "matchId", "type": "uint256" }],
+    "name": "MatchCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "name": "matchId", "type": "uint256" },
+      { "indexed": true, "name": "claimant", "type": "address" }
+    ],
+    "name": "ForfeitClaimed",
+    "type": "event"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "receive"
+  }
+]
