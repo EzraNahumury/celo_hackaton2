@@ -11,18 +11,10 @@
  * Jalankan: npx jest integration.sc --runInBand
  */
 
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  defineChain,
-  parseAbi,
-  keccak256,
-  encodePacked,
-  toBytes,
-  pad,
-  toHex,
-} from "viem";
+import dotenv from "dotenv";
+dotenv.config();
+
+import { createPublicClient, createWalletClient, http, defineChain, parseAbi, keccak256, encodePacked, toBytes, pad, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 // ── Chain & addresses dari README sc_celo_gambit ─────────────────────────────
@@ -35,15 +27,15 @@ const CELO_SEPOLIA = defineChain({
 });
 
 const ADDRESSES = {
-  hub:    "0xd6b0Ce6D872542b623CA5b7dc8ec5635e6dea578" as `0x${string}`,
+  hub: "0xd6b0Ce6D872542b623CA5b7dc8ec5635e6dea578" as `0x${string}`,
   escrow: "0x198aB1bBb866E490ae883f04b273dBd2E38d6d09" as `0x${string}`,
   puzzle: "0x1cE4Fd99CA3132fB2524abCB42eced20484C2688" as `0x${string}`,
-  club:   "0x61857BD62350b5bDF21a33679FC4d8C136BD92ef" as `0x${string}`,
+  club: "0x61857BD62350b5bDF21a33679FC4d8C136BD92ef" as `0x${string}`,
   badges: "0xb198835a036541e0BFC8d2Fc5Ca45992Ecd25B84" as `0x${string}`,
 };
 
-const ORACLE_ADDRESS  = "0x3141011f001FB5f1CdE0183ACDdD9434Fa473F70" as `0x${string}`;
-const ORACLE_PK       = "0xc29f99e248abacd38d3136e2c9ca04b48e15d057095b91a53aef7d98a36e7db4" as `0x${string}`;
+const ORACLE_ADDRESS = "0x3141011f001FB5f1CdE0183ACDdD9434Fa473F70" as `0x${string}`;
+const ORACLE_PK = (process.env.ORACLE_PRIVATE_KEY ?? "") as `0x${string}`;
 
 // ── Clients ───────────────────────────────────────────────────────────────────
 const rpc = "https://rpc.ankr.com/celo_sepolia";
@@ -52,7 +44,7 @@ const oracleAccount = privateKeyToAccount(ORACLE_PK);
 
 // ── Load ABIs dari BE ─────────────────────────────────────────────────────────
 import MatchEscrowABI from "../contracts/MatchEscrow.json";
-import GambitHubABI   from "../contracts/GambitHub.json";
+import GambitHubABI from "../contracts/GambitHub.json";
 
 // ── Timeout: semua test ke RPC pakai 20s ─────────────────────────────────────
 jest.setTimeout(30000);
@@ -187,11 +179,12 @@ describe("3. MatchEscrow — ABI sync", () => {
     try {
       await publicClient.estimateGas({
         to: ADDRESSES.escrow,
-        data: "0x6c49d9ec" + // keccak256("settleMatch(uint256,address,bytes)").slice(0,8)
-              "0".repeat(64) + // matchId = 0
-              ORACLE_ADDRESS.slice(2).toLowerCase().padStart(64, "0") + // winner
-              "0".repeat(64) + // offset to bytes
-              "0".repeat(64),  // bytes length = 0
+        data:
+          "0x6c49d9ec" + // keccak256("settleMatch(uint256,address,bytes)").slice(0,8)
+          "0".repeat(64) + // matchId = 0
+          ORACLE_ADDRESS.slice(2).toLowerCase().padStart(64, "0") + // winner
+          "0".repeat(64) + // offset to bytes
+          "0".repeat(64), // bytes length = 0
       });
     } catch (err: any) {
       revertReason = err.message || "";
@@ -219,7 +212,7 @@ describe("4. Oracle signature encoding", () => {
 
   test("digest format settleMatch: keccak256(abi.encodePacked(matchId, winner, chainId))", async () => {
     const matchId = BigInt(1);
-    const winner  = ORACLE_ADDRESS;
+    const winner = ORACLE_ADDRESS;
     const chainId = BigInt(11142220);
 
     // Replicate abi.encodePacked(uint256, address, uint256) — 32+20+32 = 84 bytes
@@ -239,7 +232,7 @@ describe("4. Oracle signature encoding", () => {
   });
 
   test("digest berbeda untuk matchId berbeda", async () => {
-    const winner  = ORACLE_ADDRESS;
+    const winner = ORACLE_ADDRESS;
     const chainId = BigInt(11142220);
 
     function buildDigest(matchId: bigint) {
@@ -262,7 +255,7 @@ describe("4. Oracle signature encoding", () => {
 
   test("chainId 11142220 masuk ke digest (bukan chainId lain)", async () => {
     const matchId = BigInt(1);
-    const winner  = ORACLE_ADDRESS;
+    const winner = ORACLE_ADDRESS;
 
     function buildDigest(chainId: bigint) {
       const buf = Buffer.alloc(84);
@@ -272,9 +265,9 @@ describe("4. Oracle signature encoding", () => {
       return keccak256(`0x${buf.toString("hex")}` as `0x${string}`);
     }
 
-    const digestSepolia  = buildDigest(BigInt(11142220)); // Celo Sepolia (benar)
-    const digestMainnet  = buildDigest(BigInt(42220));    // Celo Mainnet (beda)
-    const digestAlfajores= buildDigest(BigInt(44787));    // Alfajores (beda)
+    const digestSepolia = buildDigest(BigInt(11142220)); // Celo Sepolia (benar)
+    const digestMainnet = buildDigest(BigInt(42220)); // Celo Mainnet (beda)
+    const digestAlfajores = buildDigest(BigInt(44787)); // Alfajores (beda)
 
     expect(digestSepolia).not.toBe(digestMainnet);
     expect(digestSepolia).not.toBe(digestAlfajores);
@@ -288,7 +281,7 @@ describe("4. Oracle signature encoding", () => {
     // Ini membuktikan oracle sig format kita benar
 
     const matchId = BigInt(99999); // match tidak exist
-    const winner  = ORACLE_ADDRESS;
+    const winner = ORACLE_ADDRESS;
     const chainId = BigInt(11142220);
 
     const buf = Buffer.alloc(84);
@@ -312,8 +305,8 @@ describe("4. Oracle signature encoding", () => {
     }
 
     // Harus revert 'not active' — berarti sig diterima, bukan 'bad oracle sig'
-    const isNotActive    = revertReason.includes("not active");
-    const isBadSig       = revertReason.includes("bad oracle sig");
+    const isNotActive = revertReason.includes("not active");
+    const isBadSig = revertReason.includes("bad oracle sig");
 
     expect(isBadSig).toBe(false);
     expect(isNotActive).toBe(true);
@@ -330,9 +323,7 @@ describe("5. Event topic sync — BE ABI vs on-chain", () => {
   // Kita cari log MatchCreated di block terakhir untuk memastikan topik sama
   test("MatchCreated event topic sesuai ABI kita", async () => {
     // keccak256("MatchCreated(uint256,address,uint256)")
-    const expectedTopic = keccak256(
-      toBytes("MatchCreated(uint256,address,uint256)")
-    );
+    const expectedTopic = keccak256(toBytes("MatchCreated(uint256,address,uint256)"));
     console.log("  ✓ MatchCreated topic:", expectedTopic);
 
     // Coba getLogs dari MatchEscrow, filter by topic
@@ -347,7 +338,7 @@ describe("5. Event topic sync — BE ABI vs on-chain", () => {
         inputs: [
           { name: "matchId", type: "uint256", indexed: true },
           { name: "playerA", type: "address", indexed: true },
-          { name: "stake",   type: "uint256", indexed: false },
+          { name: "stake", type: "uint256", indexed: false },
         ],
       },
       fromBlock,
@@ -360,7 +351,7 @@ describe("5. Event topic sync — BE ABI vs on-chain", () => {
       console.log("  ✓ Contoh event:", {
         matchId: logs[0].args.matchId?.toString(),
         playerA: logs[0].args.playerA,
-        stake:   logs[0].args.stake?.toString(),
+        stake: logs[0].args.stake?.toString(),
       });
     }
   });
@@ -376,8 +367,8 @@ describe("5. Event topic sync — BE ABI vs on-chain", () => {
         name: "MatchSettled",
         inputs: [
           { name: "matchId", type: "uint256", indexed: true },
-          { name: "winner",  type: "address", indexed: true },
-          { name: "payout",  type: "uint256", indexed: false },
+          { name: "winner", type: "address", indexed: true },
+          { name: "payout", type: "uint256", indexed: false },
         ],
       },
       fromBlock,
@@ -388,8 +379,8 @@ describe("5. Event topic sync — BE ABI vs on-chain", () => {
     if (logs.length > 0) {
       console.log("  ✓ Contoh settled:", {
         matchId: logs[0].args.matchId?.toString(),
-        winner:  logs[0].args.winner,
-        payout:  logs[0].args.payout?.toString(),
+        winner: logs[0].args.winner,
+        payout: logs[0].args.payout?.toString(),
       });
     }
   });
@@ -444,7 +435,7 @@ describe("7. Match lifecycle — verifikasi state transitions", () => {
 
     // Ankr membatasi max ~500 block per getLogs request — pakai window kecil
     const latestBlock = await publicClient.getBlockNumber();
-    const fromBlock   = latestBlock - BigInt(499);
+    const fromBlock = latestBlock - BigInt(499);
 
     const logs = await publicClient.getLogs({
       address: ADDRESSES.escrow,
@@ -454,7 +445,7 @@ describe("7. Match lifecycle — verifikasi state transitions", () => {
         inputs: [
           { name: "matchId", type: "uint256", indexed: true },
           { name: "playerA", type: "address", indexed: true },
-          { name: "stake",   type: "uint256", indexed: false },
+          { name: "stake", type: "uint256", indexed: false },
         ],
       },
       fromBlock,
@@ -469,7 +460,7 @@ describe("7. Match lifecycle — verifikasi state transitions", () => {
 
   test("match yang sudah settled: resultSubmitted[matchId] = true", async () => {
     const latestBlock = await publicClient.getBlockNumber();
-    const fromBlock   = latestBlock - BigInt(499);
+    const fromBlock = latestBlock - BigInt(499);
 
     const settledLogs = await publicClient.getLogs({
       address: ADDRESSES.escrow,
@@ -478,8 +469,8 @@ describe("7. Match lifecycle — verifikasi state transitions", () => {
         name: "MatchSettled",
         inputs: [
           { name: "matchId", type: "uint256", indexed: true },
-          { name: "winner",  type: "address", indexed: true },
-          { name: "payout",  type: "uint256", indexed: false },
+          { name: "winner", type: "address", indexed: true },
+          { name: "payout", type: "uint256", indexed: false },
         ],
       },
       fromBlock,
