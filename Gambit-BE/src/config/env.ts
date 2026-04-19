@@ -15,11 +15,22 @@ export const env = {
   SERVER_WALLET_PRIVATE_KEY: process.env.SERVER_WALLET_PRIVATE_KEY as
     | `0x${string}`
     | undefined,
-  CHESS_ESCROW_ADDRESS: process.env.CHESS_ESCROW_ADDRESS as
+  // Oracle private key (needs ORACLE_ROLE in GambitHub) — signs match results
+  ORACLE_PRIVATE_KEY: process.env.ORACLE_PRIVATE_KEY as
     | `0x${string}`
     | undefined,
-  CUSD_ADDRESS: (process.env.CUSD_ADDRESS ||
-    "0x765DE816845861e75A25fCA122bb6898B8B1282a") as `0x${string}`,
+  GAMBIT_HUB_ADDRESS: process.env.GAMBIT_HUB_ADDRESS as
+    | `0x${string}`
+    | undefined,
+  MATCH_ESCROW_ADDRESS: process.env.MATCH_ESCROW_ADDRESS as
+    | `0x${string}`
+    | undefined,
+  PUZZLE_POOL_ADDRESS: process.env.PUZZLE_POOL_ADDRESS as
+    | `0x${string}`
+    | undefined,
+  // Legacy alias kept for backwards-compat during migration
+  CHESS_ESCROW_ADDRESS: (process.env.MATCH_ESCROW_ADDRESS ||
+    process.env.CHESS_ESCROW_ADDRESS) as `0x${string}` | undefined,
 
   JWT_SECRET: process.env.JWT_SECRET || "dev-secret-change-me-in-production",
 

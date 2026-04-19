@@ -22,7 +22,7 @@ import { startExpireGamesCron } from "./cron/expireGames";
 import { startDailyPuzzleCron } from "./cron/dailyPuzzle";
 
 // Escrow watcher
-import { watchDeposits } from "./services/escrowService";
+import { watchMatchEvents } from "./services/escrowService";
 
 const app = express();
 
@@ -66,7 +66,7 @@ server.listen(env.PORT, () => {
   startDailyPuzzleCron();
 
   // Watch blockchain deposits
-  watchDeposits();
+  watchMatchEvents();
 });
 
 export default server;
