@@ -1,6 +1,6 @@
 # Gambit Smart Contracts
 
-Chess microearning MiniApp for MiniPay — cUSD settlement on Celo.
+Chess microearning MiniApp for MiniPay — native CELO settlement on Celo.
 Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 
 ## Contracts
@@ -12,8 +12,11 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 | `PuzzlePool` | Daily prize pool, sponsor deposit, Merkle claim |
 | `ClubVault` | Weekly club 4-8 members, 70/20/10 split, carryover |
 | `GambitBadges` | Soulbound ERC-5192: FIRST_WIN / PUZZLE_STREAK_7 / CLUB_CHAMPION / RATING_1400 / FAIR_PLAY_HOLD |
+| `MockCUSD` *(testnet only)* | Mintable ERC20 mock stablecoin — public faucet 100 cUSD/24h |
 
 ## Deployed — Celo Sepolia Testnet (Chain 11142220)
+
+### Game Contracts
 
 | Contract | Address | Celoscan |
 |---|---|---|
@@ -23,7 +26,13 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 | ClubVault | `0x3665188aB87951Bb42984cFECC14bF5925C21644` | [view](https://sepolia.celoscan.io/address/0x3665188ab87951bb42984cfecc14bf5925c21644) |
 | GambitBadges | `0xB31A2CAB3e267528815067cD6F7d6D7957f9FfB9` | [view](https://sepolia.celoscan.io/address/0xb31a2cab3e267528815067cd6f7d6d7957f9ffb9) |
 
-> All contracts are **verified** on Celoscan.
+> All 5 game contracts are **verified** on Celoscan.
+
+### Mock Token (Testnet Only)
+
+| Contract | Address | Note |
+|---|---|---|
+| MockCUSD | `0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F` | [view](https://sepolia.celoscan.io/address/0x1738d9cd003e1e1e8f648dbae9e85ed116810c2f) — Public faucet, 100 cUSD/24h |
 
 ## Roles & Addresses
 
@@ -77,6 +86,8 @@ forge test          # 87/87 tests passing
 
 ## Deploy
 
+### Deploy semua game contracts
+
 ```bash
 forge script script/Deploy.s.sol \
   --rpc-url celo_sepolia \
@@ -85,11 +96,56 @@ forge script script/Deploy.s.sol \
   -vvvv
 ```
 
+### Deploy MockCUSD (testnet only)
+
+```bash
+forge script script/DeployMockCUSD.s.sol \
+  --rpc-url celo_sepolia \
+  --broadcast \
+  --verify \
+  -vvvv
+```
+
+## MockCUSD — Faucet
+
+Setelah deploy, siapa saja bisa claim 100 cUSD per 24 jam:
+
+```bash
+# Claim via cast
+cast send 0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F "faucet()" \
+  --rpc-url https://rpc.ankr.com/celo_sepolia \
+  --private-key $PRIVATE_KEY
+
+# Mint manual (owner only)
+cast send 0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F \
+  "mint(address,uint256)" <WALLET> <AMOUNT_WEI> \
+  --rpc-url https://rpc.ankr.com/celo_sepolia \
+  --private-key $PRIVATE_KEY
+```
+
 ## Interact via Cast
 
 ```bash
-# Check registered contract address in GambitHub
+# Check oracle role holder
 cast call 0xA68141b7b36d1161757e1790BcB5199d4EfFF281 \
-  "getContract(string)(address)" "MatchEscrow" \
+  "hasRole(bytes32,address)(bool)" \
+  $(cast keccak "ORACLE_ROLE") \
+  0x03dAC3A27deE42062b1F0D9F69087d4A9A20a3A1 \
+  --rpc-url https://rpc.ankr.com/celo_sepolia
+
+# Check match fee bps
+cast call 0xA68141b7b36d1161757e1790BcB5199d4EfFF281 \
+  "matchFeeBps()(uint256)" \
   --rpc-url https://rpc.ankr.com/celo_sepolia
 ```
+
+## Status
+
+- [x] 5 game contracts selesai & diaudit
+- [x] 87/87 unit tests passing
+- [x] Deploy ke Celo Sepolia
+- [x] Semua contracts verified di Celoscan
+- [x] MockCUSD dengan public faucet (testnet)
+- [x] Deploy MockCUSD ke Celo Sepolia
+- [ ] Frontend MiniApp (Next.js + MiniPay hook)
+- [ ] Daftar di talent.app (Proof of Ship)
