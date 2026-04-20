@@ -30,8 +30,8 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 | Role | Address | Description |
 |---|---|---|
 | Deployer / Admin | `0x5682c0FF0ba3E6B0d78755c4684aEc5EA05c2a6F` | Holds DEFAULT_ADMIN_ROLE and OPERATOR_ROLE |
-| Oracle | `0x3141011f001FB5f1CdE0183ACDdD9434Fa473F70` | Signs match results (ECDSA) |
-| Treasury | `0x3141011f001FB5f1CdE0183ACDdD9434Fa473F70` | Receives 50% of platform fees |
+| Oracle | `0x03dAC3A27deE42062b1F0D9F69087d4A9A20a3A1` | Signs match results (ECDSA) |
+| Treasury | `0x03dAC3A27deE42062b1F0D9F69087d4A9A20a3A1` | Receives 50% of platform fees |
 
 ## Fee Structure
 
