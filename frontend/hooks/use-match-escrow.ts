@@ -2,8 +2,9 @@
 
 import { useWriteContract, useReadContract } from "wagmi";
 import { matchEscrowAbi } from "@/lib/abis/match-escrow";
-import { CONTRACTS, CONTRACTS_CONFIGURED, type MatchState } from "@/lib/contracts";
+import { ACTIVE_CHAIN, CONTRACTS, CONTRACTS_CONFIGURED, type MatchState } from "@/lib/contracts";
 import { celoToWei } from "@/lib/format";
+import { useEnsureChain } from "./use-ensure-chain";
 
 export type ChainMatch = {
   playerA: `0x${string}`;
@@ -18,10 +19,13 @@ export type ChainMatch = {
 
 export function useCreateMatch() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
+  const { ensure } = useEnsureChain();
 
   const createMatch = async (opts: { timeControlSeconds: number; stakeCelo: number }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.matchEscrow,
       abi: matchEscrowAbi,
       functionName: "createMatch",
@@ -35,10 +39,13 @@ export function useCreateMatch() {
 
 export function useJoinMatch() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
+  const { ensure } = useEnsureChain();
 
   const joinMatch = async (opts: { matchId: bigint; stakeCelo: number }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.matchEscrow,
       abi: matchEscrowAbi,
       functionName: "joinMatch",
@@ -52,9 +59,12 @@ export function useJoinMatch() {
 
 export function useCancelMatch() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
-  const cancelMatch = (matchId: bigint) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+  const { ensure } = useEnsureChain();
+  const cancelMatch = async (matchId: bigint) => {
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.matchEscrow,
       abi: matchEscrowAbi,
       functionName: "cancelMatch",
@@ -66,9 +76,12 @@ export function useCancelMatch() {
 
 export function useClaimForfeit() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
-  const claimForfeit = (matchId: bigint, sig: `0x${string}`) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+  const { ensure } = useEnsureChain();
+  const claimForfeit = async (matchId: bigint, sig: `0x${string}`) => {
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.matchEscrow,
       abi: matchEscrowAbi,
       functionName: "claimForfeit",
@@ -80,6 +93,7 @@ export function useClaimForfeit() {
 
 export function useMatch(matchId: bigint | undefined) {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.matchEscrow,
     abi: matchEscrowAbi,
     functionName: "matches",
@@ -90,6 +104,7 @@ export function useMatch(matchId: bigint | undefined) {
 
 export function useMatchCount() {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.matchEscrow,
     abi: matchEscrowAbi,
     functionName: "matchCount",

@@ -15,9 +15,9 @@ import { formatCelo, formatLocal, truncateAddress } from "@/lib/format";
 import type { StakeAmount, TimeControl } from "@/types/api";
 
 const STAKES = [
-  { value: 0.5, label: "0.50", code: "0.50" as StakeAmount },
-  { value: 1.0, label: "1.00", code: "1.00" as StakeAmount },
-  { value: 2.0, label: "2.00", code: "2.00" as StakeAmount },
+  { value: 0.05, label: "0.05", code: "0.05" as StakeAmount },
+  { value: 0.1, label: "0.10", code: "0.10" as StakeAmount },
+  { value: 0.2, label: "0.20", code: "0.20" as StakeAmount },
 ] as const;
 
 const TIME_CONTROLS = [
@@ -35,7 +35,7 @@ export default function PlayPage() {
   const { status } = useTxStatus(hash);
   const toast = useToast();
 
-  const [stake, setStake] = useState<number>(1.0);
+  const [stake, setStake] = useState<number>(0.1);
   const [tc, setTc] = useState<string>("3+0");
   const [busy, setBusy] = useState(false);
 
@@ -57,7 +57,7 @@ export default function PlayPage() {
       return;
     }
 
-    const stakeCode = STAKES.find((s) => s.value === stake)?.code ?? "1.00";
+    const stakeCode = STAKES.find((s) => s.value === stake)?.code ?? "0.10";
     setBusy(true);
     try {
       // 1. Register game on BE → returns gameId + depositTx guide.

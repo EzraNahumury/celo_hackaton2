@@ -29,9 +29,9 @@ export const GameMode = {
 export type GameMode = (typeof GameMode)[keyof typeof GameMode];
 
 export const StakeAmount = {
-  SMALL: "0.50",
-  MEDIUM: "1.00",
-  LARGE: "2.00",
+  SMALL: "0.05",
+  MEDIUM: "0.10",
+  LARGE: "0.20",
 } as const;
 export type StakeAmount = (typeof StakeAmount)[keyof typeof StakeAmount];
 

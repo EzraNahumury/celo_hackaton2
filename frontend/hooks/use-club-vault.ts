@@ -2,8 +2,9 @@
 
 import { useReadContract, useWriteContract } from "wagmi";
 import { clubVaultAbi } from "@/lib/abis/club-vault";
-import { CONTRACTS, CONTRACTS_CONFIGURED, type ClubState } from "@/lib/contracts";
+import { ACTIVE_CHAIN, CONTRACTS, CONTRACTS_CONFIGURED, type ClubState } from "@/lib/contracts";
 import { celoToWei } from "@/lib/format";
+import { useEnsureChain } from "./use-ensure-chain";
 
 export type ChainClub = {
   creator: `0x${string}`;
@@ -16,11 +17,14 @@ export type ChainClub = {
 
 export function useCreateClub() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
-  const createClub = (opts: { maxMembers: number; buyInCelo: number }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+  const { ensure } = useEnsureChain();
+  const createClub = async (opts: { maxMembers: number; buyInCelo: number }) => {
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
     if (opts.maxMembers < 4 || opts.maxMembers > 8)
-      throw new Error("maxMembers harus 4–8");
+      throw new Error("maxMembers must be 4–8");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.clubVault,
       abi: clubVaultAbi,
       functionName: "createClub",
@@ -33,9 +37,12 @@ export function useCreateClub() {
 
 export function useJoinClub() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
-  const joinClub = (opts: { clubId: bigint; buyInCelo: number }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+  const { ensure } = useEnsureChain();
+  const joinClub = async (opts: { clubId: bigint; buyInCelo: number }) => {
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.clubVault,
       abi: clubVaultAbi,
       functionName: "joinClub",
@@ -48,9 +55,12 @@ export function useJoinClub() {
 
 export function useStartNewWeek() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
-  const startNewWeek = (opts: { clubId: bigint; buyInCelo: number }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+  const { ensure } = useEnsureChain();
+  const startNewWeek = async (opts: { clubId: bigint; buyInCelo: number }) => {
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.clubVault,
       abi: clubVaultAbi,
       functionName: "startNewWeek",
@@ -63,6 +73,7 @@ export function useStartNewWeek() {
 
 export function useClub(clubId: bigint | undefined) {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.clubVault,
     abi: clubVaultAbi,
     functionName: "clubs",
@@ -73,6 +84,7 @@ export function useClub(clubId: bigint | undefined) {
 
 export function useClubMembers(clubId: bigint | undefined) {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.clubVault,
     abi: clubVaultAbi,
     functionName: "getMembers",
@@ -83,6 +95,7 @@ export function useClubMembers(clubId: bigint | undefined) {
 
 export function useClubCount() {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.clubVault,
     abi: clubVaultAbi,
     functionName: "clubCount",

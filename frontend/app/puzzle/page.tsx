@@ -47,6 +47,9 @@ export default function PuzzlePage() {
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<SubmitPuzzleResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // BE returns 409 PUZZLE_ALREADY_SUBMITTED if the wallet already tried
+  // today. Flip this flag so we stop showing the Submit button.
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   useEffect(() => {
     api
@@ -136,6 +139,14 @@ export default function PuzzlePage() {
       const r = await api.submitPuzzle(puzzle.id, moves, elapsed * 1000);
       setResult(r);
     } catch (e) {
+      // 409 PUZZLE_ALREADY_SUBMITTED isn't a bug — it's the daily guard.
+      // Convert to an in-UI "already done" state so we don't re-prompt the
+      // user to resubmit.
+      const code = (e as { code?: string }).code;
+      const status = (e as { status?: number }).status;
+      if (code === "PUZZLE_ALREADY_SUBMITTED" || status === 409) {
+        setAlreadySubmitted(true);
+      }
       toast.showError(e);
     } finally {
       setSubmitting(false);
@@ -298,6 +309,22 @@ export default function PuzzlePage() {
                 Back to Home
               </Link>
             </div>
+          </div>
+        ) : alreadySubmitted ? (
+          <div className="card mt-4 p-4 text-center">
+            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
+              You already submitted today ✓
+            </p>
+            <p className="mt-1 text-[11px] text-[color:var(--color-ink-2)]">
+              One attempt per wallet per day. Come back after{" "}
+              <b>00:00 UTC</b> for the next puzzle.
+            </p>
+            <Link
+              href="/home"
+              className="mt-3 inline-block rounded-full bg-[color:var(--color-primary)] px-5 py-2 text-xs font-bold text-white"
+            >
+              Back to Home
+            </Link>
           </div>
         ) : distributed ? (
           <div className="card mt-4 p-4">

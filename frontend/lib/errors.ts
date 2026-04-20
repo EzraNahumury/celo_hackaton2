@@ -95,6 +95,27 @@ export function humanizeError(err: unknown): FriendlyError {
     };
   }
 
+  // Puzzle limits — not really errors, just daily guardrails.
+  if (
+    lc.startsWith("puzzle_already_submitted") ||
+    lc.includes("already submitted")
+  ) {
+    return {
+      title: "Already solved today",
+      message: "You can only attempt the daily puzzle once per day.",
+      hint: "Come back after 00:00 UTC for a new puzzle.",
+      tone: "info",
+    };
+  }
+  if (lc.startsWith("puzzle_expired") || lc.includes("puzzle expired")) {
+    return {
+      title: "Puzzle expired",
+      message: "Today's puzzle window has closed.",
+      hint: "A new puzzle drops at 00:00 UTC.",
+      tone: "info",
+    };
+  }
+
   // Contract simulation failed / revert.
   if (lc.includes("reverted") || lc.includes("execution reverted")) {
     return {

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useReadContracts } from "wagmi";
 import { gambitBadgesAbi } from "@/lib/abis/gambit-badges";
 import {
+  ACTIVE_CHAIN,
   BADGE_META,
   BADGE_TYPE,
   CONTRACTS,
@@ -23,6 +24,7 @@ export function usePlayerBadges(player: `0x${string}` | undefined) {
   const contracts = useMemo(
     () =>
       ALL_BADGES.map((b) => ({
+        chainId: ACTIVE_CHAIN.id,
         address: CONTRACTS.badges,
         abi: gambitBadgesAbi,
         functionName: "hasBadge" as const,

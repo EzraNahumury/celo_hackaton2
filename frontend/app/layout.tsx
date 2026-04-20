@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ChainBanner } from "@/components/chain-banner";
+import { RootErrorBoundary } from "@/components/error-boundary";
 import { PreviewBanner } from "@/components/preview-banner";
 import { ToastProvider } from "@/components/toast";
 import { Web3Provider } from "@/providers/web3-provider";
@@ -21,28 +23,47 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// Some browser wallet extensions (e.g. the one that injects requestProvider.js)
-// monkey-patch History.prototype.pushState/replaceState in a way that throws
-// `Cannot read properties of null (reading 'dispatchEvent')` on every Next.js
-// route change. Restoring the natives from a fresh iframe before React hydrates
-// ensures Next.js's app-router captures the untouched implementations.
-const RESTORE_HISTORY = `(function(){try{var f=document.createElement('iframe');f.style.display='none';(document.body||document.documentElement).appendChild(f);var p=f.contentWindow.History.prototype;History.prototype.pushState=p.pushState;History.prototype.replaceState=p.replaceState;f.remove();}catch(e){}})();`;
+// Minimal defensive shim. Mobile Safari aborts the whole page ("This page
+// couldn't load") if an uncaught error fires during hydration — typically
+// from wallet extensions monkey-patching History. We DON'T touch History
+// prototype here (iframe-based restoration crashes some mobile WebViews);
+// instead we install a capture-phase error swallower that preserves
+// navigation when a wallet's pushState listener throws on a null `this`.
+const HISTORY_SHIM = `(function(){try{
+  var isNoise = function(x){
+    var m = x && (x.message || (typeof x === 'string' ? x : ''));
+    return !!m && String(m).indexOf('dispatchEvent') !== -1;
+  };
+  window.addEventListener('error', function(ev){
+    if (isNoise(ev.error) || isNoise(ev.message)) {
+      ev.preventDefault();
+      if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      return false;
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', function(ev){
+    if (isNoise(ev.reason)) ev.preventDefault();
+  }, true);
+}catch(_){}})();`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: RESTORE_HISTORY }} />
+        <script dangerouslySetInnerHTML={{ __html: HISTORY_SHIM }} />
       </head>
       <body className="min-h-dvh flex flex-col overflow-x-hidden" suppressHydrationWarning>
-        <Web3Provider>
-          <ToastProvider>
-            <div className="mx-auto w-full max-w-[430px] flex-1 flex flex-col relative">
-              <PreviewBanner />
-              {children}
-            </div>
-          </ToastProvider>
-        </Web3Provider>
+        <RootErrorBoundary>
+          <Web3Provider>
+            <ToastProvider>
+              <div className="mx-auto w-full max-w-[430px] flex-1 flex flex-col relative">
+                <PreviewBanner />
+                <ChainBanner />
+                {children}
+              </div>
+            </ToastProvider>
+          </Web3Provider>
+        </RootErrorBoundary>
       </body>
     </html>
   );

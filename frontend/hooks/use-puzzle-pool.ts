@@ -2,14 +2,18 @@
 
 import { useReadContract, useWriteContract } from "wagmi";
 import { puzzlePoolAbi } from "@/lib/abis/puzzle-pool";
-import { CONTRACTS, CONTRACTS_CONFIGURED } from "@/lib/contracts";
+import { ACTIVE_CHAIN, CONTRACTS, CONTRACTS_CONFIGURED } from "@/lib/contracts";
 import { celoToWei } from "@/lib/format";
+import { useEnsureChain } from "./use-ensure-chain";
 
 export function useSponsorDeposit() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
-  const sponsorDeposit = (amountCelo: number) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+  const { ensure } = useEnsureChain();
+  const sponsorDeposit = async (amountCelo: number) => {
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.puzzlePool,
       abi: puzzlePoolAbi,
       functionName: "sponsorDeposit",
@@ -21,13 +25,16 @@ export function useSponsorDeposit() {
 
 export function useClaimPuzzle() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
-  const claim = (opts: {
+  const { ensure } = useEnsureChain();
+  const claim = async (opts: {
     day: bigint;
     amountWei: bigint;
     proof: `0x${string}`[];
   }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts belum di-deploy");
+    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+    await ensure();
     return writeContractAsync({
+      chainId: ACTIVE_CHAIN.id,
       address: CONTRACTS.puzzlePool,
       abi: puzzlePoolAbi,
       functionName: "claim",
@@ -39,6 +46,7 @@ export function useClaimPuzzle() {
 
 export function usePuzzlePoolBalance() {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.puzzlePool,
     abi: puzzlePoolAbi,
     functionName: "pendingBalance",
@@ -48,6 +56,7 @@ export function usePuzzlePoolBalance() {
 
 export function useTodayIndex() {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.puzzlePool,
     abi: puzzlePoolAbi,
     functionName: "todayIndex",
@@ -57,6 +66,7 @@ export function useTodayIndex() {
 
 export function useRound(day: bigint | undefined) {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.puzzlePool,
     abi: puzzlePoolAbi,
     functionName: "rounds",
@@ -67,6 +77,7 @@ export function useRound(day: bigint | undefined) {
 
 export function useHasClaimed(day: bigint | undefined, player: `0x${string}` | undefined) {
   return useReadContract({
+    chainId: ACTIVE_CHAIN.id,
     address: CONTRACTS.puzzlePool,
     abi: puzzlePoolAbi,
     functionName: "hasClaimed",
