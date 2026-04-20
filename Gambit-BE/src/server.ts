@@ -13,6 +13,7 @@ import authRouter from "./routes/auth";
 import gameRouter from "./routes/game";
 import puzzleRouter from "./routes/puzzle";
 import leaderboardRouter from "./routes/leaderboard";
+import playerRouter from "./routes/player";
 
 // WebSocket
 import { setupWebSocket } from "./ws/wsServer";
@@ -50,6 +51,7 @@ app.use("/auth", authRouter);
 app.use("/game", gameRouter);
 app.use("/puzzle", puzzleRouter);
 app.use("/leaderboard", leaderboardRouter);
+app.use("/player", playerRouter);
 
 // Create HTTP server
 const server = http.createServer(app);

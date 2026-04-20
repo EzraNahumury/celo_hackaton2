@@ -13,8 +13,15 @@ interface GameWebSocket extends WebSocket {
   isAlive?: boolean;
 }
 
+let _wss: WebSocketServer | null = null;
+
+export function getOnlineCount(): number {
+  return _wss ? _wss.clients.size : 0;
+}
+
 export function setupWebSocket(server: HTTPServer): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
+  _wss = wss;
 
   server.on("upgrade", (req, socket, head) => {
     try {
