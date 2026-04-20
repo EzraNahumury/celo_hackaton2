@@ -17,11 +17,11 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 
 | Contract | Address | Celoscan |
 |---|---|---|
-| GambitHub | `0xd6b0Ce6D872542b623CA5b7dc8ec5635e6dea578` | [view](https://sepolia.celoscan.io/address/0xd6b0ce6d872542b623ca5b7dc8ec5635e6dea578) |
-| MatchEscrow | `0x198aB1bBb866E490ae883f04b273dBd2E38d6d09` | [view](https://sepolia.celoscan.io/address/0x198ab1bbb866e490ae883f04b273dbd2e38d6d09) |
-| PuzzlePool | `0x1cE4Fd99CA3132fB2524abCB42eced20484C2688` | [view](https://sepolia.celoscan.io/address/0x1ce4fd99ca3132fb2524abcb42eced20484c2688) |
-| ClubVault | `0x61857BD62350b5bDF21a33679FC4d8C136BD92ef` | [view](https://sepolia.celoscan.io/address/0x61857bd62350b5bdf21a33679fc4d8c136bd92ef) |
-| GambitBadges | `0xb198835a036541e0BFC8d2Fc5Ca45992Ecd25B84` | [view](https://sepolia.celoscan.io/address/0xb198835a036541e0bfc8d2fc5ca45992ecd25b84) |
+| GambitHub | `0xA68141b7b36d1161757e1790BcB5199d4EfFF281` | [view](https://sepolia.celoscan.io/address/0xa68141b7b36d1161757e1790bcb5199d4efff281) |
+| MatchEscrow | `0xF8CeF418419E8F1588d6EB26095358CFAF635dC5` | [view](https://sepolia.celoscan.io/address/0xf8cef418419e8f1588d6eb26095358cfaf635dc5) |
+| PuzzlePool | `0xbE34567ADF30c233103AEbFBB2b940e06DAc7366` | [view](https://sepolia.celoscan.io/address/0xbe34567adf30c233103aebfbb2b940e06dac7366) |
+| ClubVault | `0x3665188aB87951Bb42984cFECC14bF5925C21644` | [view](https://sepolia.celoscan.io/address/0x3665188ab87951bb42984cfecc14bf5925c21644) |
+| GambitBadges | `0xB31A2CAB3e267528815067cD6F7d6D7957f9FfB9` | [view](https://sepolia.celoscan.io/address/0xb31a2cab3e267528815067cd6f7d6d7957f9ffb9) |
 
 > All contracts are **verified** on Celoscan.
 
@@ -89,7 +89,7 @@ forge script script/Deploy.s.sol \
 
 ```bash
 # Check registered contract address in GambitHub
-cast call 0xd6b0Ce6D872542b623CA5b7dc8ec5635e6dea578 \
+cast call 0xA68141b7b36d1161757e1790BcB5199d4EfFF281 \
   "getContract(string)(address)" "MatchEscrow" \
   --rpc-url https://rpc.ankr.com/celo_sepolia
 ```
