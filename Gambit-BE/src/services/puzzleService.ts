@@ -1,6 +1,13 @@
 import { supabase } from "../config/supabase";
 import { normalizeAddress } from "../utils/helpers";
 import { logger } from "../utils/logger";
+import { buildPuzzleTree, buildProofFromWinners, dateToDayNumber, Winner } from "./merkleService";
+import { walletClient, publicClient } from "../config/blockchain";
+import { env } from "../config/env";
+import PuzzlePoolABI from "../contracts/PuzzlePool.json";
+
+// Top-N correct solvers who win a share of the prize pool
+const MAX_WINNERS = 10;
 
 export async function getDailyPuzzle() {
   const today = new Date().toISOString().split("T")[0];
@@ -139,4 +146,158 @@ export async function generateDailyPuzzle(): Promise<void> {
   });
 
   logger.info("Daily puzzle generated", { puzzleId });
+}
+
+/**
+ * Finalize a puzzle round:
+ *  1. Fetch top-MAX_WINNERS correct solvers sorted by solve_time_ms (fastest first)
+ *  2. Compute equal share of prize_pool for each winner (in wei)
+ *  3. Build Merkle tree and submit root to PuzzlePool.finalizeRound on-chain
+ *  4. Persist merkle_root + individual reward amounts back to DB
+ *
+ * Idempotent: if merkle_root is already set on the puzzle row, skips on-chain submit.
+ */
+export async function finalizePuzzleRound(
+  puzzleDate: string
+): Promise<{ winners: number; merkleRoot: string | null }> {
+  const puzzleId = `puzzle-${puzzleDate}`;
+
+  const { data: puzzle } = await supabase
+    .from("puzzles")
+    .select("id, prize_pool, merkle_root")
+    .eq("id", puzzleId)
+    .single();
+
+  if (!puzzle) {
+    logger.warn("finalizePuzzleRound: puzzle not found", { puzzleId });
+    return { winners: 0, merkleRoot: null };
+  }
+
+  // Already finalized — return existing root without re-submitting
+  if ((puzzle as any).merkle_root) {
+    logger.info("finalizePuzzleRound: already finalized", {
+      puzzleId,
+      merkleRoot: (puzzle as any).merkle_root,
+    });
+    return { winners: 0, merkleRoot: (puzzle as any).merkle_root };
+  }
+
+  // Fetch top-N correct attempts sorted fastest first
+  const { data: attempts } = await supabase
+    .from("puzzle_attempts")
+    .select("player_address, solve_time_ms")
+    .eq("puzzle_id", puzzleId)
+    .eq("correct", true)
+    .order("solve_time_ms", { ascending: true })
+    .limit(MAX_WINNERS);
+
+  if (!attempts || attempts.length === 0) {
+    logger.info("finalizePuzzleRound: no correct solvers", { puzzleId });
+    return { winners: 0, merkleRoot: null };
+  }
+
+  // Equal share (in wei); prize_pool is in CELO with up to 2 decimal places
+  const prizePool = Number(puzzle.prize_pool);
+  const shareWei = BigInt(
+    Math.floor((prizePool / attempts.length) * 1e18)
+  );
+
+  const winners: Winner[] = attempts.map((a) => ({
+    address: a.player_address,
+    amountWei: shareWei,
+  }));
+
+  const tree = buildPuzzleTree(winners);
+  const merkleRoot = tree.root as `0x${string}`;
+
+  // Submit on-chain
+  let txHash: string | null = null;
+  if (walletClient && env.PUZZLE_POOL_ADDRESS) {
+    try {
+      const day = dateToDayNumber(puzzleDate);
+      txHash = await walletClient.writeContract({
+        address: env.PUZZLE_POOL_ADDRESS,
+        abi: PuzzlePoolABI,
+        functionName: "finalizeRound",
+        args: [day, merkleRoot],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+      logger.info("PuzzlePool.finalizeRound submitted", {
+        puzzleDate,
+        merkleRoot,
+        winners: winners.length,
+        txHash,
+      });
+    } catch (err) {
+      logger.error("PuzzlePool.finalizeRound on-chain failed", {
+        error: (err as Error).message,
+        puzzleDate,
+      });
+      // Continue — persist root to DB anyway so proofs still work off-chain
+    }
+  } else {
+    logger.warn("PUZZLE_POOL_ADDRESS not configured — skipping on-chain finalizeRound");
+  }
+
+  // Persist merkle_root to puzzles row
+  await supabase
+    .from("puzzles")
+    .update({ merkle_root: merkleRoot })
+    .eq("id", puzzleId);
+
+  // Persist individual reward amounts to puzzle_attempts
+  const shareDisplay = prizePool / attempts.length;
+  for (const winner of winners) {
+    await supabase
+      .from("puzzle_attempts")
+      .update({ reward: shareDisplay })
+      .eq("puzzle_id", puzzleId)
+      .eq("player_address", winner.address);
+  }
+
+  logger.info("finalizePuzzleRound complete", {
+    puzzleId,
+    winners: winners.length,
+    merkleRoot,
+    txHash,
+  });
+
+  return { winners: winners.length, merkleRoot };
+}
+
+/**
+ * Get the Merkle proof for a specific address for a given puzzle day.
+ * Returns null if the round hasn't been finalized or the address didn't win.
+ */
+export async function getPuzzleProof(
+  puzzleDate: string,
+  playerAddress: string
+): Promise<{ amount: string; proof: string[] } | null> {
+  const puzzleId = `puzzle-${puzzleDate}`;
+  const address = normalizeAddress(playerAddress);
+
+  // Fetch all winning attempts for this puzzle (correct=true, reward>0)
+  const { data: attempts } = await supabase
+    .from("puzzle_attempts")
+    .select("player_address, reward")
+    .eq("puzzle_id", puzzleId)
+    .eq("correct", true)
+    .gt("reward", 0)
+    .order("solve_time_ms", { ascending: true })
+    .limit(MAX_WINNERS);
+
+  if (!attempts || attempts.length === 0) return null;
+
+  const winners: Winner[] = attempts.map((a) => ({
+    address: a.player_address,
+    amountWei: BigInt(Math.round(Number(a.reward) * 1e18)),
+  }));
+
+  const result = buildProofFromWinners(winners, address);
+  if (!result) return null;
+
+  return {
+    amount: result.amountWei.toString(),
+    proof: result.proof,
+  };
 }

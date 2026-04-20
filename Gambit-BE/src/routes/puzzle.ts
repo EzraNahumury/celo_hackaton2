@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { authMiddleware } from "../middleware/auth";
-import { getDailyPuzzle, submitPuzzleAttempt } from "../services/puzzleService";
+import { getDailyPuzzle, submitPuzzleAttempt, getPuzzleProof } from "../services/puzzleService";
 import { ERRORS } from "../types";
 
 const router = Router();
@@ -104,6 +104,143 @@ router.post("/daily/submit", authMiddleware, async (req: Request, res: Response)
     } else {
       res.status(500).json(ERRORS.SERVER_ERROR);
     }
+  }
+});
+
+/**
+ * @openapi
+ * /puzzle/daily/proof:
+ *   get:
+ *     tags: [Puzzle]
+ *     summary: Get Merkle proof for today's puzzle prize claim
+ *     description: >
+ *       Shorthand for /puzzle/{today}/proof — the frontend calls this after
+ *       the round is finalized. Returns proof + amount (wei) for
+ *       PuzzlePool.claim(day, amount, proof).
+ *     parameters:
+ *       - in: query
+ *         name: addr
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Player wallet address
+ *     responses:
+ *       200:
+ *         description: Proof data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 amount:
+ *                   type: string
+ *                   example: "500000000000000000"
+ *                 proof:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Missing addr query param
+ *       404:
+ *         description: Round not finalized yet or address is not a winner
+ */
+router.get("/daily/proof", async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Accept both `addr` (FE convention) and `address` (REST convention)
+    const address = (req.query.addr || req.query.address) as string | undefined;
+
+    if (!address) {
+      res.status(400).json({ error: "addr query param required" });
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const result = await getPuzzleProof(today, address);
+    if (!result) {
+      res.status(404).json({ error: "Not a winner or round not yet finalized" });
+      return;
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json(ERRORS.SERVER_ERROR);
+  }
+});
+
+/**
+ * @openapi
+ * /puzzle/{day}/proof:
+ *   get:
+ *     tags: [Puzzle]
+ *     summary: Get Merkle proof for claiming puzzle prize
+ *     description: >
+ *       Returns the Merkle proof and amount (in wei) needed to call
+ *       PuzzlePool.claim(day, amount, proof) on-chain.
+ *       Returns 404 if the round hasn't been finalized yet or the address
+ *       is not a winner.
+ *     parameters:
+ *       - in: path
+ *         name: day
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: "2026-04-19"
+ *         description: Puzzle date (YYYY-MM-DD)
+ *       - in: query
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Player wallet address
+ *     responses:
+ *       200:
+ *         description: Proof data for on-chain claim
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 amount:
+ *                   type: string
+ *                   description: Prize amount in wei (pass directly to PuzzlePool.claim)
+ *                   example: "500000000000000000"
+ *                 proof:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Merkle proof array of bytes32 hex strings
+ *       400:
+ *         description: Missing address query param or invalid date
+ *       404:
+ *         description: Round not finalized yet or address is not a winner
+ */
+router.get("/:day/proof", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { day } = req.params as { day: string };
+    const address = req.query.address as string | undefined;
+
+    if (!address) {
+      res.status(400).json({ error: "address query param required" });
+      return;
+    }
+
+    // Validate date format YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      res.status(400).json({ error: "day must be in YYYY-MM-DD format" });
+      return;
+    }
+
+    const result = await getPuzzleProof(day, address);
+    if (!result) {
+      res.status(404).json({
+        error: "Not a winner or round not yet finalized",
+      });
+      return;
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json(ERRORS.SERVER_ERROR);
   }
 });
 
