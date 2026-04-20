@@ -364,6 +364,32 @@ async function handleTimeout(gameId: string, color: "white" | "black"): Promise<
   logger.info("Game ended by timeout", { gameId, color });
 }
 
+export async function acceptDraw(
+  gameId: string
+): Promise<void> {
+  const { data: game } = await supabase
+    .from("games")
+    .select("*")
+    .eq("id", gameId)
+    .single();
+
+  if (!game) throw new Error("GAME_NOT_FOUND");
+  if (game.status !== "active") throw new Error("GAME_ALREADY_ENDED");
+
+  await supabase
+    .from("games")
+    .update({
+      status: "completed",
+      result: "draw",
+      end_reason: "draw_agreement",
+      ended_at: new Date().toISOString(),
+    })
+    .eq("id", gameId);
+
+  stopClock(gameId);
+  await handleGameEnd(game as Game, "draw");
+}
+
 export async function getGame(gameId: string): Promise<Game | null> {
   const { data } = await supabase.from("games").select("*").eq("id", gameId).single();
   if (!data) return null;
