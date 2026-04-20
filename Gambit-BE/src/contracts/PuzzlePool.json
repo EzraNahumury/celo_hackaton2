@@ -1,0 +1,54 @@
+[
+  {
+    "type": "function",
+    "name": "finalizeRound",
+    "inputs": [
+      { "name": "day", "type": "uint256", "internalType": "uint256" },
+      { "name": "merkleRoot", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claim",
+    "inputs": [
+      { "name": "day", "type": "uint256", "internalType": "uint256" },
+      { "name": "amount", "type": "uint256", "internalType": "uint256" },
+      { "name": "proof", "type": "bytes32[]", "internalType": "bytes32[]" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "merkleRoots",
+    "inputs": [
+      { "name": "day", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [
+      { "name": "", "type": "bytes32", "internalType": "bytes32" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "RoundFinalized",
+    "inputs": [
+      { "name": "day", "type": "uint256", "indexed": true },
+      { "name": "merkleRoot", "type": "bytes32", "indexed": false },
+      { "name": "totalWinners", "type": "uint256", "indexed": false }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Claimed",
+    "inputs": [
+      { "name": "day", "type": "uint256", "indexed": true },
+      { "name": "claimant", "type": "address", "indexed": true },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ],
+    "anonymous": false
+  }
+]

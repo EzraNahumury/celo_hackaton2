@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import { makeMove, resignGame } from "../services/gameService";
+import { makeMove, resignGame, acceptDraw } from "../services/gameService";
 import { broadcastToGame } from "./gameRoom";
 import { logger } from "../utils/logger";
 
@@ -77,13 +77,30 @@ function handleDrawOffer(ws: GameWebSocket, _msg: any): void {
   );
 }
 
-function handleDrawAccept(ws: GameWebSocket, _msg: any): void {
+async function handleDrawAccept(ws: GameWebSocket, _msg: any): Promise<void> {
   if (!ws.gameId || !ws.playerAddress) return;
-  // TODO: implement draw acceptance logic
-  broadcastToGame(ws.gameId, {
-    event: "draw:accepted",
-    by: ws.playerAddress,
-  });
+
+  try {
+    await acceptDraw(ws.gameId);
+    broadcastToGame(ws.gameId, {
+      event: "draw:accepted",
+      by: ws.playerAddress,
+    });
+    broadcastToGame(ws.gameId, {
+      event: "game:end",
+      gameId: ws.gameId,
+      result: "draw",
+      reason: "draw_agreement",
+    });
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg === "GAME_ALREADY_ENDED") {
+      ws.send(JSON.stringify({ event: "error", message: "Game already ended" }));
+    } else {
+      logger.error("WS draw:accept handler error", { error: msg });
+      ws.send(JSON.stringify({ event: "error", message: "Draw acceptance failed" }));
+    }
+  }
 }
 
 async function handleResign(ws: GameWebSocket, _msg: any): Promise<void> {

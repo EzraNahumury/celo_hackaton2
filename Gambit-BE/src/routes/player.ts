@@ -145,4 +145,75 @@ router.get("/online", (_req: Request, res: Response): void => {
   res.json({ online: getOnlineCount() });
 });
 
+/**
+ * @openapi
+ * /player/{address}:
+ *   get:
+ *     tags: [Player]
+ *     summary: Get stats for a specific player
+ *     description: Returns player profile and stats. Works for any player regardless of leaderboard rank.
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Player stats
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 wallet_address:
+ *                   type: string
+ *                 username:
+ *                   type: string
+ *                   nullable: true
+ *                 rating:
+ *                   type: integer
+ *                 wins:
+ *                   type: integer
+ *                 losses:
+ *                   type: integer
+ *                 draws:
+ *                   type: integer
+ *                 total_earned:
+ *                   type: number
+ *                 rank:
+ *                   type: integer
+ *                   description: Global rating rank (1 = highest)
+ *       404:
+ *         description: Player not found
+ */
+router.get("/:address", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const address = normalizeAddress(req.params.address as string);
+
+    const { data: player, error } = await supabase
+      .from("players")
+      .select("wallet_address, username, rating, wins, losses, draws, total_earned, created_at, last_seen")
+      .eq("wallet_address", address)
+      .single();
+
+    if (error || !player) {
+      res.status(404).json({ error: "Player not found" });
+      return;
+    }
+
+    // Count players with strictly higher rating to derive rank
+    const { count } = await supabase
+      .from("players")
+      .select("*", { count: "exact", head: true })
+      .gt("rating", player.rating);
+
+    const rank = (count ?? 0) + 1;
+
+    res.json({ ...player, rank });
+  } catch (err) {
+    res.status(500).json(ERRORS.SERVER_ERROR);
+  }
+});
+
 export default router;

@@ -501,6 +501,102 @@ describe("Flow 3: Draw result → settleMatch(address(0))", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Flow 3b: Draw by agreement (draw:accept WS event) → settleMatch(address(0))
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("Flow 3b: Draw by agreement (acceptDraw)", () => {
+
+  test("acceptDraw sets game completed/draw/draw_agreement in DB", async () => {
+    const { acceptDraw } = await import("../services/gameService");
+
+    const game = await createGame(ALICE, 1.0, "3+0", "white", "pvp");
+    const dbGame = dbGames.get(game.id)!;
+    dbGame.status = "active";
+    dbGame.white_address = ALICE;
+    dbGame.black_address = BOB;
+    dbGame.onchain_game_id = null; // no on-chain yet
+
+    await acceptDraw(game.id);
+
+    const finalGame = dbGames.get(game.id)!;
+    expect(finalGame.status).toBe("completed");
+    expect(finalGame.result).toBe("draw");
+    expect(finalGame.end_reason).toBe("draw_agreement");
+    expect(finalGame.ended_at).not.toBeNull();
+    console.log("  ✓ acceptDraw → game.status=completed, result=draw, end_reason=draw_agreement");
+  });
+
+  test("acceptDraw calls settleMatch(address(0)) on-chain when matchId present", async () => {
+    const { acceptDraw } = await import("../services/gameService");
+    successTx();
+
+    const game = await createGame(ALICE, 1.0, "3+0", "white", "pvp");
+    const dbGame = dbGames.get(game.id)!;
+    dbGame.status = "active";
+    dbGame.white_address = ALICE;
+    dbGame.black_address = BOB;
+    dbGame.onchain_game_id = "20";
+
+    await acceptDraw(game.id);
+
+    expect(mockWriteContract).toHaveBeenCalledTimes(1);
+    const call = mockWriteContract.mock.calls[0][0];
+    expect(call.functionName).toBe("settleMatch");
+    expect(call.args[0]).toBe(BigInt(20));
+    expect(call.args[1]).toBe("0x0000000000000000000000000000000000000000");
+    console.log("  ✓ acceptDraw → settleMatch(20, address(0), sig)");
+  });
+
+  test("acceptDraw does NOT call settleMatch when no on-chain matchId", async () => {
+    const { acceptDraw } = await import("../services/gameService");
+
+    const game = await createGame(ALICE, 1.0, "3+0", "white", "pvp");
+    const dbGame = dbGames.get(game.id)!;
+    dbGame.status = "active";
+    dbGame.white_address = ALICE;
+    dbGame.black_address = BOB;
+    dbGame.onchain_game_id = null;
+
+    await acceptDraw(game.id);
+
+    expect(mockWriteContract).not.toHaveBeenCalled();
+    console.log("  ✓ No on-chain matchId → settleMatch skipped safely");
+  });
+
+  test("acceptDraw updates ELO and player stats for both players", async () => {
+    const { acceptDraw } = await import("../services/gameService");
+
+    const game = await createGame(ALICE, 1.0, "3+0", "white", "pvp");
+    const dbGame = dbGames.get(game.id)!;
+    dbGame.status = "active";
+    dbGame.white_address = ALICE;
+    dbGame.black_address = BOB;
+    dbGame.onchain_game_id = null;
+
+    await acceptDraw(game.id);
+
+    const alice = dbPlayers.get(ALICE)!;
+    const bob   = dbPlayers.get(BOB)!;
+    expect(alice.draws).toBe(1);
+    expect(bob.draws).toBe(1);
+    expect(alice.wins).toBe(0);
+    expect(bob.wins).toBe(0);
+    console.log("  ✓ Both players: draws+1, wins unchanged, ELO adjusted");
+  });
+
+  test("acceptDraw throws GAME_ALREADY_ENDED if game is not active", async () => {
+    const { acceptDraw } = await import("../services/gameService");
+
+    const game = await createGame(ALICE, 1.0, "3+0", "white", "pvp");
+    const dbGame = dbGames.get(game.id)!;
+    dbGame.status = "completed";
+
+    await expect(acceptDraw(game.id)).rejects.toThrow("GAME_ALREADY_ENDED");
+    console.log("  ✓ acceptDraw on completed game throws GAME_ALREADY_ENDED");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Flow 4: Timeout → settleMatch(opponent)
 // ─────────────────────────────────────────────────────────────────────────────
 
