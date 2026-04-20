@@ -2,7 +2,8 @@
 /**
  * player.routes.test.ts
  *
- * Unit tests for the three new player endpoints:
+ * Unit tests for the player endpoints:
+ *   GET /player/:address              — player profile + rank
  *   GET /player/:address/games        — match history
  *   GET /player/:address/transactions — tx history
  *   GET /player/online                — live WS count
@@ -14,12 +15,20 @@
 
 const ALICE = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const BOB   = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const CAROL = "0xcccccccccccccccccccccccccccccccccccccccc";
 
 // --- Supabase in-memory state ---
+let dbPlayers: any[]      = [];
 let dbGames: any[]        = [];
 let dbTransactions: any[] = [];
 
 function resetDb() {
+  dbPlayers = [
+    { wallet_address: ALICE, username: "alice", rating: 1400, wins: 10, losses: 3, draws: 2, total_earned: 9.70, created_at: "2026-01-01T00:00:00Z", last_seen: "2026-04-20T00:00:00Z" },
+    { wallet_address: BOB,   username: null,    rating: 1200, wins:  5, losses: 5, draws: 0, total_earned: 0,    created_at: "2026-01-02T00:00:00Z", last_seen: "2026-04-19T00:00:00Z" },
+    { wallet_address: CAROL, username: "carol", rating: 1600, wins: 20, losses: 1, draws: 3, total_earned: 19.4, created_at: "2026-01-03T00:00:00Z", last_seen: "2026-04-20T00:00:00Z" },
+  ];
+
   dbGames = [
     {
       id: "game-1",
@@ -105,15 +114,21 @@ function makeQueryBuilder(table: string) {
   const b: any = {
     _table: table,
     _filters: [] as [string, any][],
+    _gtFilters: [] as [string, any][],
     _orFilter: null as string | null,
     _orderField: null as string | null,
     _orderAsc: true,
     _rangeFrom: 0,
     _rangeTo: 19,
     _single: false,
+    _countOnly: false,
 
-    select()          { return this; },
+    select(cols?: any, opts?: any) {
+      if (opts?.count === "exact" && opts?.head === true) this._countOnly = true;
+      return this;
+    },
     eq(col: string, val: any) { this._filters.push([col, val]); return this; },
+    gt(col: string, val: any) { this._gtFilters.push([col, val]); return this; },
     or(expr: string)  { this._orFilter = expr; return this; },
     order(col: string, opts?: any) {
       this._orderField = col;
@@ -127,13 +142,24 @@ function makeQueryBuilder(table: string) {
     _execute() {
       const t = this._table;
 
-      if (t === "games") {
-        let rows = [...dbGames];
-        // eq filters
+      if (t === "players") {
+        let rows = [...dbPlayers];
         for (const [col, val] of this._filters) {
           rows = rows.filter(r => r[col] === val);
         }
-        // or filter: "white_address.eq.0x...,black_address.eq.0x..."
+        for (const [col, val] of this._gtFilters) {
+          rows = rows.filter(r => r[col] > val);
+        }
+        if (this._countOnly) return { count: rows.length, error: null };
+        if (this._single) return { data: rows[0] ?? null, error: rows[0] ? null : { message: "not found" } };
+        return { data: rows, error: null };
+      }
+
+      if (t === "games") {
+        let rows = [...dbGames];
+        for (const [col, val] of this._filters) {
+          rows = rows.filter(r => r[col] === val);
+        }
         if (this._orFilter) {
           rows = rows.filter(r =>
             this._orFilter!.split(",").some((part: string) => {
@@ -227,6 +253,57 @@ beforeEach(() => {
   resetDb();
   mockSupabase.from.mockClear();
   mockSupabase.from.mockImplementation((t: string) => makeQueryBuilder(t));
+});
+
+describe("GET /player/:address", () => {
+  it("returns player profile for a known address", async () => {
+    const res = await request(app).get(`/player/${ALICE}`);
+    expect(res.status).toBe(200);
+    expect(res.body.wallet_address).toBe(ALICE);
+    expect(res.body.username).toBe("alice");
+    expect(res.body.rating).toBe(1400);
+    expect(res.body.wins).toBe(10);
+    expect(res.body.losses).toBe(3);
+    expect(res.body.draws).toBe(2);
+    expect(res.body.total_earned).toBe(9.70);
+  });
+
+  it("includes a numeric rank field", async () => {
+    const res = await request(app).get(`/player/${ALICE}`);
+    expect(res.status).toBe(200);
+    expect(typeof res.body.rank).toBe("number");
+    expect(res.body.rank).toBeGreaterThan(0);
+  });
+
+  it("rank reflects position by rating — Carol(1600) is rank 1, Alice(1400) is rank 2, Bob(1200) is rank 3", async () => {
+    const [carol, alice, bob] = await Promise.all([
+      request(app).get(`/player/${CAROL}`),
+      request(app).get(`/player/${ALICE}`),
+      request(app).get(`/player/${BOB}`),
+    ]);
+    expect(carol.body.rank).toBe(1);
+    expect(alice.body.rank).toBe(2);
+    expect(bob.body.rank).toBe(3);
+  });
+
+  it("normalizes address to lowercase", async () => {
+    const res = await request(app).get(`/player/${ALICE.toUpperCase()}`);
+    expect(res.status).toBe(200);
+    expect(res.body.wallet_address).toBe(ALICE);
+  });
+
+  it("returns 404 for an unknown address", async () => {
+    const res = await request(app).get("/player/0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("Player not found");
+  });
+
+  it("/player/online is NOT matched by /:address (online route takes precedence)", async () => {
+    const res = await request(app).get("/player/online");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("online"); // online endpoint, not player profile
+    expect(res.body).not.toHaveProperty("wallet_address");
+  });
 });
 
 describe("GET /player/:address/games", () => {
