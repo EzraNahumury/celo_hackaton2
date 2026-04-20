@@ -108,12 +108,12 @@ export function WalletPicker({ open, onClose, onConnected }: Props) {
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-extrabold tracking-tight">Connect a wallet</h2>
-            <p className="mt-0.5 text-xs text-white/60">Pilih cara kamu untuk sign in</p>
+            <p className="mt-0.5 text-xs text-white/60">Choose how you want to sign in</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Tutup"
+            aria-label="Close"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/80 transition hover:bg-white/15"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -125,7 +125,7 @@ export function WalletPicker({ open, onClose, onConnected }: Props) {
         <ul className="mt-4 flex flex-col gap-2">
           {list.length === 0 && (
             <li className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-              Tidak ada wallet yang terdeteksi di browser. Install ekstensi seperti MetaMask, Rabby, atau Coinbase Wallet, lalu muat ulang halaman ini.
+              No wallet detected in browser. Install an extension like MetaMask, Rabby, or Coinbase Wallet, then reload this page.
             </li>
           )}
           {list.map((c, i) => {
@@ -174,14 +174,14 @@ export function WalletPicker({ open, onClose, onConnected }: Props) {
         )}
 
         <p className="mt-4 border-t border-white/10 pt-3 text-[11px] text-white/55">
-          Baru di wallet Ethereum?{" "}
+          New to Ethereum wallets?{" "}
           <a
             href="https://ethereum.org/en/wallets/find-wallet/"
             target="_blank"
             rel="noreferrer"
             className="font-semibold text-[#8b9dff] hover:underline"
           >
-            Pelajari
+            Learn more
           </a>
         </p>
       </div>

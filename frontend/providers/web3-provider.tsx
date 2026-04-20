@@ -2,15 +2,41 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState } from "react";
-import { WagmiProvider, useReconnect } from "wagmi";
+import { WagmiProvider, useAccount, useDisconnect, useReconnect } from "wagmi";
 import { WalletPicker } from "@/components/wallet-picker";
 import { wagmiConfig } from "@/lib/wagmi";
 
+// LocalStorage flag recording an *explicit* user disconnect. Wagmi's
+// built-in reconnect looks at wallet extension state, but if the user
+// clicked "Disconnect" we must override that and stay disconnected until
+// they explicitly connect again. See hooks/use-connect.ts where this flag
+// is set/cleared.
+export const DISCONNECT_FLAG = "gambit:disconnected";
+
+function hasExplicitDisconnect(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(DISCONNECT_FLAG) === "1";
+}
+
+// Run on every mount. Wagmi auto-rehydrates its connector state from
+// localStorage BEFORE our code runs, so `shimDisconnect` alone doesn't
+// always stick. We enforce the user's explicit disconnect intent here:
+// - If the flag is set, force a disconnect whenever wagmi thinks we're
+//   still connected (and never trigger reconnect).
+// - If the flag isn't set, normal reconnect path.
 function AutoReconnect() {
   const { reconnect } = useReconnect();
+  const { isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
+
   useEffect(() => {
+    if (hasExplicitDisconnect()) {
+      if (isConnected) disconnect();
+      return;
+    }
     reconnect();
-  }, [reconnect]);
+  }, [reconnect, disconnect, isConnected]);
+
   return null;
 }
 
@@ -34,7 +60,14 @@ function ConnectDialogHost({ children }: { children: React.ReactNode }) {
     <ConnectDialogContext.Provider
       value={{
         open,
-        openPicker: () => setOpen(true),
+        openPicker: () => {
+          // User opening the picker is an explicit intent to connect — clear
+          // the "stay disconnected" flag so subsequent reconnects work.
+          if (typeof window !== "undefined") {
+            window.localStorage.removeItem(DISCONNECT_FLAG);
+          }
+          setOpen(true);
+        },
         closePicker: () => setOpen(false),
       }}
     >

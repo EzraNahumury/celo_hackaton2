@@ -91,5 +91,15 @@ body {
 }
 .sparkle { animation: sparkle 2.4s ease-in-out infinite; }
 
+@keyframes toast-bar {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.animate-toast-bar {
+  animation-name: toast-bar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }

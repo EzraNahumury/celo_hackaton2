@@ -5,7 +5,13 @@ export const celoSepolia = defineChain({
   name: "Celo Sepolia",
   nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://rpc.ankr.com/celo_sepolia"] },
+    default: {
+      http: [
+        "https://forno.celo-sepolia.celo-testnet.org",
+        "https://celo-sepolia.drpc.org",
+        "https://rpc.ankr.com/celo_sepolia",
+      ],
+    },
   },
   blockExplorers: {
     default: { name: "Celoscan", url: "https://celo-sepolia.blockscout.com" },
@@ -57,11 +63,11 @@ export const BADGE_TYPE = {
 export type BadgeType = (typeof BADGE_TYPE)[keyof typeof BADGE_TYPE];
 
 export const BADGE_META: Record<BadgeType, { label: string; desc: string; emoji: string }> = {
-  1: { label: "First Win", desc: "Menang match 1v1 pertamamu.", emoji: "🏆" },
-  2: { label: "Puzzle Streak 7", desc: "Solve puzzle harian 7 hari berturut.", emoji: "✨" },
-  3: { label: "Club Champion", desc: "Juara weekly round-robin klub.", emoji: "👑" },
-  4: { label: "1400 Club", desc: "Rating tembus 1400.", emoji: "📈" },
-  5: { label: "Fair Play Hold", desc: "Akun ditahan karena terdeteksi anomali fair-play.", emoji: "🚫" },
+  1: { label: "First Win", desc: "Win your first 1v1 match.", emoji: "🏆" },
+  2: { label: "Puzzle Streak 7", desc: "Solve 7 daily puzzles in a row.", emoji: "✨" },
+  3: { label: "Club Champion", desc: "Win a weekly club round-robin.", emoji: "👑" },
+  4: { label: "1400 Club", desc: "Rating above 1400.", emoji: "📈" },
+  5: { label: "Fair Play Hold", desc: "Account on hold for fair-play anomaly.", emoji: "🚫" },
 };
 
 export const MATCH_STATE = {

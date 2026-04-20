@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useBalance } from "wagmi";
 import { BottomNav } from "@/components/bottom-nav";
@@ -13,6 +14,7 @@ import {
 } from "@/components/icons";
 import { useWallet } from "@/hooks/use-connect";
 import { usePlayerBadges } from "@/hooks/use-badges";
+import { usePlayerStats } from "@/hooks/use-player-stats";
 import { ACTIVE_CHAIN, CONTRACTS } from "@/lib/contracts";
 import { formatCeloWei, truncateAddress, weiToLocal } from "@/lib/format";
 
@@ -61,7 +63,7 @@ const CONTRACT_META: ContractMeta[] = [
     name: "PuzzlePool",
     file: "PuzzlePool.sol",
     tag: "Daily",
-    desc: "Prize pool harian. Sponsor deposit + Merkle claim untuk top finisher.",
+    desc: "Daily prize pool. Sponsor deposit + Merkle claim for top finishers.",
     Icon: PuzzleIcon,
     accent: {
       chip: "bg-cyan-100",
@@ -73,7 +75,7 @@ const CONTRACT_META: ContractMeta[] = [
     name: "ClubVault",
     file: "ClubVault.sol",
     tag: "Weekly",
-    desc: "Buy-in mingguan 4–8 member. Split 70/20/10 + carry-over 10%.",
+    desc: "Weekly buy-in for 4–8 members. Split 70/20/10 + 10% carry-over.",
     Icon: ClubIcon,
     accent: {
       chip: "bg-amber-100",
@@ -98,6 +100,7 @@ export default function ProfilePage() {
   const { address, isConnected, connect, isConnecting, disconnect, connector } = useWallet();
   const { data: bal } = useBalance({ address, query: { enabled: !!address } });
   const { badges } = usePlayerBadges(address);
+  const { entry: stats, loading: statsLoading } = usePlayerStats(address);
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
@@ -115,14 +118,21 @@ export default function ProfilePage() {
     <>
       <div className="bg-hero rounded-b-[32px] px-5 pt-[max(env(safe-area-inset-top),18px)] pb-16 text-white">
         <header className="flex items-center justify-center">
-          <p className="text-sm font-bold">Akun</p>
+          <p className="text-sm font-bold">Account</p>
         </header>
         <div className="mt-6 flex flex-col items-center text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-2xl font-extrabold">
-            {address ? address.slice(2, 4).toUpperCase() : "??"}
+          <span className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-3xl bg-white">
+            <Image
+              src="/logo.png"
+              alt="Gambit"
+              width={144}
+              height={144}
+              priority
+              className="h-full w-full scale-125 object-contain"
+            />
           </span>
           <p className="mt-3 text-lg font-bold">
-            {address ? truncateAddress(address, 8, 6) : "Belum terhubung"}
+            {address ? truncateAddress(address, 8, 6) : "Not connected"}
           </p>
           <p className="text-[11px] text-white/75">{ACTIVE_CHAIN.name}</p>
         </div>
@@ -131,7 +141,7 @@ export default function ProfilePage() {
       <main className="flex-1 px-5 pb-6">
         <section className="card -mt-10 p-4 relative z-10">
           <div className="grid grid-cols-3 gap-3">
-            <Stat label="Saldo" value={bal ? weiToLocal(bal.value) : "—"} />
+            <Stat label="Balance" value={bal ? weiToLocal(bal.value) : "—"} />
             <Stat label="CELO" value={bal ? formatCeloWei(bal.value, 3) : "—"} />
             <Stat label="Badges" value={String(badges.filter((b) => b.owned).length)} />
           </div>
@@ -142,7 +152,7 @@ export default function ProfilePage() {
               disabled={isConnecting}
               className="mt-4 w-full rounded-2xl bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white shadow-[var(--shadow-glow-primary)]"
             >
-              {isConnecting ? "Menghubungkan…" : "Connect MiniPay"}
+              {isConnecting ? "Connecting…" : "Connect MiniPay"}
             </button>
           ) : (
             <button
@@ -159,6 +169,46 @@ export default function ProfilePage() {
             </button>
           )}
         </section>
+
+        {isConnected && (
+          <section className="card mt-4 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-[color:var(--color-ink-0)]">
+                  Player Stats
+                </h2>
+                <p className="text-[11px] text-[color:var(--color-ink-2)]">
+                  Data from Gambit backend
+                </p>
+              </div>
+              {stats && (
+                <span className="rounded-full bg-[color:var(--color-primary-50)] px-3 py-1 text-[10px] font-bold text-[color:var(--color-primary-dark)]">
+                  Rank #{stats.rank}
+                </span>
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              <Stat
+                label="Rating"
+                value={stats ? String(stats.rating) : statsLoading ? "…" : "—"}
+              />
+              <Stat
+                label="Wins"
+                value={stats ? String(stats.wins) : statsLoading ? "…" : "—"}
+              />
+              <Stat
+                label="Losses"
+                value={stats ? String(stats.losses) : statsLoading ? "…" : "—"}
+              />
+              <Stat
+                label="Earned"
+                value={
+                  stats ? `${Number(stats.totalEarned).toFixed(2)}` : statsLoading ? "…" : "—"
+                }
+              />
+            </div>
+          </section>
+        )}
 
         <section className="mt-6">
           <div className="flex items-center justify-between">
@@ -195,7 +245,7 @@ export default function ProfilePage() {
                       : "text-[color:var(--color-ink-3)]"
                   }`}
                 >
-                  {b.owned ? "Dimiliki" : "Belum"}
+                  {b.owned ? "Owned" : "Locked"}
                 </p>
               </div>
             ))}
@@ -205,9 +255,9 @@ export default function ProfilePage() {
         <section className="mt-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-[color:var(--color-ink-0)]">Kontrak</h2>
+              <h2 className="text-base font-bold text-[color:var(--color-ink-0)]">Contracts</h2>
               <p className="text-[11px] text-[color:var(--color-ink-2)]">
-                Semua stake & payout terjadi di sini.
+                All stakes & payouts happen here.
               </p>
             </div>
             <span className="rounded-full bg-[color:var(--color-primary-50)] px-3 py-1 text-[10px] font-bold text-[color:var(--color-primary-dark)]">
@@ -230,7 +280,7 @@ export default function ProfilePage() {
         </section>
 
         <section className="mt-6">
-          <h2 className="text-base font-bold text-[color:var(--color-ink-0)]">Tentang</h2>
+          <h2 className="text-base font-bold text-[color:var(--color-ink-0)]">About</h2>
           <ul className="mt-3 flex flex-col gap-2">
             <InfoRow
               icon={<GlobeIcon />}
@@ -256,7 +306,7 @@ export default function ProfilePage() {
               <Chip
                 tone={fairPlayHeld ? "danger" : "success"}
                 dot
-                text={fairPlayHeld ? "Ditahan" : "Aktif"}
+                text={fairPlayHeld ? "On hold" : "Active"}
               />
             </InfoRow>
 
@@ -275,7 +325,7 @@ export default function ProfilePage() {
             <InfoRow
               icon={<InfoIcon />}
               tint="bg-[color:var(--color-surface-soft)] text-[color:var(--color-ink-2)]"
-              label="Versi"
+              label="Version"
             >
               <span className="font-mono text-xs font-bold text-[color:var(--color-ink-1)]">
                 v0.1.0
@@ -300,7 +350,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setConfirmDisconnect(false)}
-              aria-label="Tutup"
+              aria-label="Close"
               className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--color-surface-soft)] text-[color:var(--color-ink-2)] transition hover:bg-[color:var(--color-border)]"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
@@ -355,7 +405,7 @@ export default function ProfilePage() {
                   <path d="M5 15V5a2 2 0 0 1 2-2h10" />
                 </svg>
                 <span className="text-xs font-bold">
-                  {copied === address ? "Tersalin!" : "Copy Address"}
+                  {copied === address ? "Copied!" : "Copy Address"}
                 </span>
               </button>
               <button
@@ -469,7 +519,7 @@ function ContractCard({
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-amber)]" />
             <span className="text-[11px] font-bold text-[color:var(--color-amber)]">
-              Belum di-deploy
+              Not deployed
             </span>
           </div>
           <span className="font-mono text-[10px] text-[color:var(--color-ink-3)]">

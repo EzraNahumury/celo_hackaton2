@@ -6,8 +6,8 @@ import { HistoryIcon, HomeIcon, ProfileIcon } from "./icons";
 
 const items = [
   { href: "/home", label: "Home", Icon: HomeIcon },
-  { href: "/history", label: "Aktivitas", Icon: HistoryIcon },
-  { href: "/profile", label: "Akun", Icon: ProfileIcon },
+  { href: "/history", label: "Activity", Icon: HistoryIcon },
+  { href: "/profile", label: "Account", Icon: ProfileIcon },
 ] as const;
 
 export function BottomNav() {

@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/hooks/use-connect";
+import { useOnlineCount } from "@/hooks/use-online-count";
 import { useConnectDialog } from "@/providers/web3-provider";
 
 type Feature = {
@@ -22,8 +24,8 @@ const FEATURES: Feature[] = [
     piece: "♞",
     hint: "01",
     title: "1v1 Match",
-    desc: "Lawan pemain lain, stake kecil. Menang: pot minus 3% fee ke dompet kamu.",
-    stat: "Stake · 0.50 – 2 cUSD",
+    desc: "Play other players with small stakes. Win: pot minus 3% fee to your wallet.",
+    stat: "Stake · 0.50 – 2 CELO",
     href: "/play",
     tint: "#60a5fa",
   },
@@ -31,8 +33,8 @@ const FEATURES: Feature[] = [
     key: "puzzle",
     piece: "♛",
     hint: "02",
-    title: "Puzzle Harian",
-    desc: "Satu puzzle gratis tiap hari. Top 10 tercepat bagi prize pool komunitas.",
+    title: "Daily Puzzle",
+    desc: "One free puzzle every day. Top 10 fastest solvers split the community prize pool.",
     stat: "Reset · 00:00 UTC",
     href: "/puzzle",
     tint: "#a78bfa",
@@ -42,7 +44,7 @@ const FEATURES: Feature[] = [
     piece: "♚",
     hint: "03",
     title: "Chess Club",
-    desc: "Bikin klub 4–8 teman. Buy-in mingguan, round-robin, juara ambil 70%.",
+    desc: "Create a 4–8 friend club. Weekly buy-in, round-robin, winner takes 70%.",
     stat: "Split · 70 / 20 / 10",
     href: "/club",
     tint: "#34d399",
@@ -135,10 +137,10 @@ export default function WelcomePage() {
           {busy ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-              Menghubungkan…
+              Connecting…
             </>
           ) : (
-            <>Hubungkan Wallet</>
+            <>Connect Wallet</>
           )}
         </button>
       </div>
@@ -156,13 +158,19 @@ function TopBar() {
       >
         <MenuIcon />
       </button>
-      <button
-        type="button"
-        aria-label="Profil"
-        className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-gradient-to-br from-[#60a5fa] to-[#a78bfa] text-xs font-extrabold text-white"
+      <span
+        aria-hidden
+        className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white"
       >
-        EK
-      </button>
+        <Image
+          src="/logo.png"
+          alt="Gambit"
+          width={64}
+          height={64}
+          priority
+          className="h-full w-full scale-125 object-contain"
+        />
+      </span>
     </div>
   );
 }
@@ -284,7 +292,7 @@ function FeatureCard({
           type="button"
           onClick={onArrow}
           disabled={busy}
-          aria-label={`Mulai ${feature.title}`}
+          aria-label={`Start ${feature.title}`}
           className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-[color:var(--color-amber)] text-[#2a1a00] shadow-[0_12px_24px_-8px_rgba(245,177,24,0.55)] transition active:scale-95 disabled:opacity-70"
         >
           {busy ? (
@@ -301,7 +309,7 @@ function FeatureCard({
           <button
             type="button"
             onClick={onPrev}
-            aria-label="Fitur sebelumnya"
+            aria-label="Previous feature"
             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:text-white"
           >
             <ChevLeft />
@@ -309,7 +317,7 @@ function FeatureCard({
           <button
             type="button"
             onClick={onNext}
-            aria-label="Fitur berikutnya"
+            aria-label="Next feature"
             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80 transition hover:text-white"
           >
             <ChevRight />
@@ -331,29 +339,35 @@ function FeatureCard({
 }
 
 function CommunityStrip() {
-  const avatars = [
-    { bg: "from-[#60a5fa] to-[#2563eb]", label: "D" },
-    { bg: "from-[#a78bfa] to-[#7c3aed]", label: "M" },
-    { bg: "from-[#34d399] to-[#059669]", label: "R" },
-    { bg: "from-[#f59e0b] to-[#d97706]", label: "K" },
-  ];
+  const { online } = useOnlineCount();
   return (
     <div className="mt-4 flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-3 py-2 backdrop-blur-md">
-      <div className="flex -space-x-2">
-        {avatars.map((a, i) => (
-          <span
-            key={i}
-            className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br ${a.bg} text-[10px] font-extrabold text-white ring-2 ring-[#0c1240]`}
-          >
-            {a.label}
-          </span>
-        ))}
-      </div>
+      <span
+        aria-hidden
+        className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-md"
+      >
+        <Image
+          src="/celo.png"
+          alt="Celo"
+          width={28}
+          height={28}
+          className="h-full w-full object-contain"
+        />
+      </span>
       <p className="flex-1 text-[11px] text-white/75">
-        <span className="font-bold text-white">3.120 pemain</span> online sekarang
+        {online === null ? (
+          <>
+            Play & settle on <span className="font-bold text-white">Celo Sepolia</span>
+          </>
+        ) : (
+          <>
+            <span className="font-bold text-white">{online} players</span> online on{" "}
+            Celo Sepolia
+          </>
+        )}
       </p>
       <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-300">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
         LIVE
       </span>
     </div>

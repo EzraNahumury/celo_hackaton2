@@ -1,75 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { formatUnits } from "viem";
-import { useReadContracts } from "wagmi";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { ChevronLeft, SwordsIcon } from "@/components/icons";
+import { useToast } from "@/components/toast";
 import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
-import { useJoinMatch, useMatchCount } from "@/hooks/use-match-escrow";
+import { useJoinMatch } from "@/hooks/use-match-escrow";
 import { useWallet } from "@/hooks/use-connect";
-import { matchEscrowAbi } from "@/lib/abis/match-escrow";
-import {
-  CONTRACTS,
-  CONTRACTS_CONFIGURED,
-  MATCH_STATE,
-  tcSecondsToLabel,
-} from "@/lib/contracts";
-import { formatLocal, truncateAddress, weiToLocal } from "@/lib/format";
-
-const PAGE_SIZE = 10;
+import { useSession } from "@/hooks/use-session";
+import { api } from "@/lib/api";
+import { CONTRACTS_CONFIGURED } from "@/lib/contracts";
+import { formatLocal, truncateAddress } from "@/lib/format";
+import type { LobbyEntry } from "@/types/api";
 
 export default function LobbyPage() {
+  const router = useRouter();
   const { address, isConnected, connect, isConnecting } = useWallet();
-  const { data: countRaw } = useMatchCount();
-  const count = countRaw ? Number(countRaw) : 0;
+  const { token } = useSession();
+  const toast = useToast();
 
-  const ids = useMemo(() => {
-    const recent = Math.max(0, count - PAGE_SIZE);
-    return Array.from({ length: count - recent }).map((_, i) => BigInt(count - i));
-  }, [count]);
+  const [games, setGames] = useState<LobbyEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { data: matchesRaw, isLoading } = useReadContracts({
-    contracts: ids.map((id) => ({
-      address: CONTRACTS.matchEscrow,
-      abi: matchEscrowAbi,
-      functionName: "matches" as const,
-      args: [id],
-    })),
-    query: { enabled: CONTRACTS_CONFIGURED && ids.length > 0 },
-  });
+  const load = useCallback(async () => {
+    try {
+      const res = await api.getLobby();
+      setGames(res.games);
+    } catch (e) {
+      toast.showError(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-  const pending = useMemo(() => {
-    if (!matchesRaw) return [] as {
-      id: bigint;
-      playerA: `0x${string}`;
-      stake: bigint;
-      tcSec: bigint;
-    }[];
-    return matchesRaw
-      .map((r, i) => ({ raw: r, id: ids[i] }))
-      .filter((x) => x.raw.status === "success")
-      .map((x) => {
-        const v = x.raw.result as readonly [
-          `0x${string}`,
-          `0x${string}`,
-          bigint,
-          bigint,
-          bigint,
-          number,
-          `0x${string}`,
-          boolean,
-        ];
-        return {
-          id: x.id,
-          playerA: v[0],
-          stake: v[2],
-          tcSec: v[4],
-          state: v[5],
-        };
-      })
-      .filter((m) => m.state === MATCH_STATE.Pending);
-  }, [matchesRaw, ids]);
+  useEffect(() => {
+    load();
+    // Light polling so lobby reflects new games + opponents joining.
+    const id = setInterval(load, 5000);
+    return () => clearInterval(id);
+  }, [load]);
 
   return (
     <main className="flex-1">
@@ -78,7 +48,7 @@ export default function LobbyPage() {
           <Link
             href="/play"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15"
-            aria-label="Kembali"
+            aria-label="Back"
           >
             <ChevronLeft size={18} />
           </Link>
@@ -87,15 +57,15 @@ export default function LobbyPage() {
             href="/play"
             className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold"
           >
-            Buat Baru
+            New Match
           </Link>
         </header>
         <div className="mt-5 text-center">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/80">
-            Match menunggu
+            Waiting matches
           </p>
-          <h1 className="mt-1 text-4xl font-extrabold">{pending.length}</h1>
-          <p className="mt-1 text-xs text-white/80">on-chain · menunggu opponent</p>
+          <h1 className="mt-1 text-4xl font-extrabold">{games.length}</h1>
+          <p className="mt-1 text-xs text-white/80">Live · auto-refresh 5s</p>
         </div>
       </div>
 
@@ -107,40 +77,40 @@ export default function LobbyPage() {
             disabled={isConnecting}
             className="mt-4 w-full rounded-2xl bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white shadow-[var(--shadow-glow-primary)]"
           >
-            {isConnecting ? "Menghubungkan…" : "Connect MiniPay untuk join"}
+            {isConnecting ? "Connecting…" : "Connect MiniPay to join"}
           </button>
         )}
 
-        {isLoading ? (
+        {loading ? (
           <div className="mt-6 flex items-center justify-center py-10 text-sm text-[color:var(--color-ink-2)]">
-            Memuat dari chain…
+            Loading lobby…
           </div>
-        ) : pending.length === 0 ? (
+        ) : games.length === 0 ? (
           <div className="card mt-4 flex flex-col items-center gap-2 p-8 text-center">
             <SwordsIcon size={28} className="text-[color:var(--color-primary)]" />
             <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
-              Belum ada match menunggu
+              No matches waiting yet
             </p>
             <p className="text-[11px] text-[color:var(--color-ink-2)]">
-              Buat match sendiri — pertama yang buka lobby biasanya cepat dapat lawan.
+              Create your own match — openers usually get matched quickly.
             </p>
             <Link
               href="/play"
               className="mt-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2 text-xs font-bold text-white"
             >
-              Buat Match
+              Create Match
             </Link>
           </div>
         ) : (
           <ul className="mt-4 flex flex-col gap-2">
-            {pending.map((m) => (
+            {games.map((g) => (
               <MatchRow
-                key={m.id.toString()}
-                id={m.id}
-                playerA={m.playerA}
-                stake={m.stake}
-                tcSec={m.tcSec}
-                isSelf={address?.toLowerCase() === m.playerA.toLowerCase()}
+                key={g.id}
+                game={g}
+                myAddress={address?.toLowerCase()}
+                authed={!!token}
+                onJoined={(gameId) => router.push(`/game?id=${encodeURIComponent(gameId)}`)}
+                onNeedConnect={connect}
               />
             ))}
           </ul>
@@ -151,29 +121,59 @@ export default function LobbyPage() {
 }
 
 function MatchRow({
-  id,
-  playerA,
-  stake,
-  tcSec,
-  isSelf,
+  game,
+  myAddress,
+  authed,
+  onJoined,
+  onNeedConnect,
 }: {
-  id: bigint;
-  playerA: `0x${string}`;
-  stake: bigint;
-  tcSec: bigint;
-  isSelf: boolean;
+  game: LobbyEntry;
+  myAddress: string | undefined;
+  authed: boolean;
+  onJoined: (gameId: string) => void;
+  onNeedConnect: () => void;
 }) {
   const { joinMatch, isPending, hash } = useJoinMatch();
   const { status } = useTxStatus(hash);
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
 
-  const stakeCelo = Number(formatUnits(stake, 18));
-  const busy = isPending || status === "pending";
+  const creator = game.white_address ?? game.black_address ?? null;
+  const isSelf = !!creator && myAddress === creator.toLowerCase();
+  const working = busy || isPending || status === "pending";
 
   const onJoin = async () => {
+    if (!myAddress) {
+      onNeedConnect();
+      return;
+    }
+    if (!authed) {
+      toast.show({
+        title: "Session not ready",
+        message: "Wait for backend login to finish then try again.",
+        tone: "info",
+      });
+      return;
+    }
+    setBusy(true);
     try {
-      await joinMatch({ matchId: id, stakeCelo });
+      // 1. Claim the seat via BE → returns depositTx with matchId as args[0].
+      const joined = await api.joinGame(game.id);
+      const onchainMatchId = joined.depositTx?.args?.[0];
+
+      // 2. Execute on-chain deposit so MatchEscrow has both stakes.
+      if (CONTRACTS_CONFIGURED && onchainMatchId != null) {
+        await joinMatch({
+          matchId: BigInt(String(onchainMatchId)),
+          stakeCelo: Number(game.stake_amount),
+        });
+      }
+
+      onJoined(joined.gameId);
     } catch (e) {
-      alert((e as Error).message);
+      toast.showError(e);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -184,13 +184,12 @@ function MatchRow({
       </span>
       <div className="flex-1 min-w-0">
         <p className="truncate text-sm font-bold text-[color:var(--color-ink-0)]">
-          Match #{id.toString()} ·{" "}
-          <span className="text-[color:var(--color-primary)]">
-            {tcSecondsToLabel(Number(tcSec))}
-          </span>
+          {isSelf ? "Your Match" : "Match"} ·{" "}
+          <span className="text-[color:var(--color-primary)]">{game.time_control}</span>
         </p>
         <p className="text-[11px] text-[color:var(--color-ink-2)]">
-          {isSelf ? "Kamu" : truncateAddress(playerA)} · stake {stakeCelo.toFixed(2)} CELO
+          {creator ? (isSelf ? "You" : truncateAddress(creator)) : "—"} · stake{" "}
+          {Number(game.stake_amount).toFixed(2)} CELO
         </p>
         {hash && (
           <div className="mt-1">
@@ -199,17 +198,20 @@ function MatchRow({
         )}
       </div>
       {isSelf ? (
-        <span className="rounded-full bg-[color:var(--color-amber-soft)] px-3 py-1 text-[10px] font-bold text-[color:var(--color-amber)]">
-          MILIKMU
-        </span>
+        <Link
+          href={`/game?id=${encodeURIComponent(game.id)}`}
+          className="rounded-full bg-[color:var(--color-amber-soft)] px-3 py-1.5 text-[11px] font-bold text-[color:var(--color-amber)]"
+        >
+          Enter
+        </Link>
       ) : (
         <button
           type="button"
           onClick={onJoin}
-          disabled={busy}
+          disabled={working}
           className="rounded-full bg-[color:var(--color-primary)] px-4 py-2 text-xs font-bold text-white shadow-sm active:scale-[0.98] disabled:opacity-70"
         >
-          {busy ? "…" : `Join ${formatLocal(stakeCelo, "IDR")}`}
+          {working ? "…" : `Join ${formatLocal(Number(game.stake_amount), "IDR")}`}
         </button>
       )}
     </li>

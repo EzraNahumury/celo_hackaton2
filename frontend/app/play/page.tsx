@@ -5,15 +5,19 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
 import { BoltIcon, ChevronLeft, PlayIcon, SparkleIcon } from "@/components/icons";
+import { useToast } from "@/components/toast";
 import { useWallet } from "@/hooks/use-connect";
 import { useCreateMatch } from "@/hooks/use-match-escrow";
+import { useSession } from "@/hooks/use-session";
+import { api } from "@/lib/api";
 import { CONTRACTS_CONFIGURED, tcLabelToSeconds, MATCH_FEE_BPS } from "@/lib/contracts";
 import { formatCelo, formatLocal, truncateAddress } from "@/lib/format";
+import type { StakeAmount, TimeControl } from "@/types/api";
 
 const STAKES = [
-  { value: 0.5, label: "0.50" },
-  { value: 1.0, label: "1.00" },
-  { value: 2.0, label: "2.00" },
+  { value: 0.5, label: "0.50", code: "0.50" as StakeAmount },
+  { value: 1.0, label: "1.00", code: "1.00" as StakeAmount },
+  { value: 2.0, label: "2.00", code: "2.00" as StakeAmount },
 ] as const;
 
 const TIME_CONTROLS = [
@@ -26,45 +30,74 @@ const TIME_CONTROLS = [
 export default function PlayPage() {
   const router = useRouter();
   const { address, isConnected, connect, isConnecting } = useWallet();
+  const { token, loading: authLoading } = useSession();
   const { createMatch, isPending: creating, hash } = useCreateMatch();
   const { status } = useTxStatus(hash);
+  const toast = useToast();
 
   const [stake, setStake] = useState<number>(1.0);
   const [tc, setTc] = useState<string>("3+0");
-  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const pot = stake * 2;
   const fee = (pot * MATCH_FEE_BPS) / 10_000;
   const potential = pot - fee;
 
   const onCreate = async () => {
-    setErr(null);
-    try {
-      if (!isConnected) {
-        connect();
-        return;
-      }
-      if (!CONTRACTS_CONFIGURED) {
-        router.push(`/game?stake=${stake}&tc=${tc}&preview=1`);
-        return;
-      }
-      await createMatch({
-        timeControlSeconds: tcLabelToSeconds(tc),
-        stakeCelo: stake,
+    if (!isConnected) {
+      connect();
+      return;
+    }
+    if (!token) {
+      toast.show({
+        title: "Session not ready",
+        message: "Wait for backend login to finish then try again.",
+        tone: "info",
       });
-      router.push(`/lobby?created=1&stake=${stake}&tc=${tc}`);
+      return;
+    }
+
+    const stakeCode = STAKES.find((s) => s.value === stake)?.code ?? "1.00";
+    setBusy(true);
+    try {
+      // 1. Register game on BE → returns gameId + depositTx guide.
+      const game = await api.createGame({
+        stake: stakeCode,
+        timeControl: tc as TimeControl,
+        color: "random",
+        mode: "pvp",
+      });
+
+      // 2. Execute on-chain deposit using BE-provided parameters (or fallback to hook).
+      if (CONTRACTS_CONFIGURED) {
+        await createMatch({
+          timeControlSeconds: tcLabelToSeconds(tc),
+          stakeCelo: stake,
+        });
+      }
+
+      // 3. BE event watcher links MatchCreated → onchain_game_id; go wait for opponent.
+      router.push(`/game?id=${encodeURIComponent(game.gameId)}`);
     } catch (e) {
-      setErr((e as Error).message);
+      toast.showError(e);
+    } finally {
+      setBusy(false);
     }
   };
 
+  const working = busy || creating || isConnecting || status === "pending" || authLoading;
+
   const btnLabel = !isConnected
     ? "Connect MiniPay"
+    : authLoading
+    ? "Signing in…"
     : status === "pending"
-    ? "Konfirmasi di wallet…"
+    ? "Confirm in wallet…"
     : creating
-    ? "Membuat match…"
-    : `Buat match · ${formatLocal(stake, "IDR")}`;
+    ? "Depositing stake…"
+    : busy
+    ? "Creating match…"
+    : `Create match · ${formatLocal(stake, "IDR")}`;
 
   return (
     <main className="flex-1">
@@ -73,11 +106,11 @@ export default function PlayPage() {
           <Link
             href="/home"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15"
-            aria-label="Kembali"
+            aria-label="Back"
           >
             <ChevronLeft size={18} />
           </Link>
-          <p className="text-sm font-bold">Main 1v1</p>
+          <p className="text-sm font-bold">1v1 Match</p>
           <Link
             href="/lobby"
             className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold"
@@ -88,13 +121,13 @@ export default function PlayPage() {
 
         <section className="mt-6 text-center fade-in-up">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/80">
-            Kalau menang
+            If you win
           </p>
           <h1 className="mt-1 text-5xl font-extrabold tracking-tight">
             {formatLocal(potential, "IDR")}
           </h1>
           <p className="mt-1 text-xs text-white/80">
-            Pot {formatCelo(pot)} · fee {(MATCH_FEE_BPS / 100).toFixed(0)}%
+            Pot {formatCelo(pot)} · {(MATCH_FEE_BPS / 100).toFixed(0)}% fee
           </p>
         </section>
       </div>
@@ -102,7 +135,7 @@ export default function PlayPage() {
       <div className="px-5 pb-8">
         <section className="card -mt-5 p-5 relative z-10">
           <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-            Pilih Stake (CELO)
+            Pick Stake (CELO)
           </h2>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {STAKES.map((s) => {
@@ -137,7 +170,7 @@ export default function PlayPage() {
           </div>
 
           <h2 className="mt-6 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-            Kecepatan (on-chain: {tcLabelToSeconds(tc)}s)
+            Time control (on-chain: {tcLabelToSeconds(tc)}s)
           </h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {TIME_CONTROLS.map((t) => {
@@ -170,15 +203,13 @@ export default function PlayPage() {
         <section className="card mt-4 p-4">
           <div className="flex items-center gap-2">
             <SparkleIcon size={16} className="text-[color:var(--color-primary)]" />
-            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">Flow on-chain</p>
+            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">On-chain flow</p>
           </div>
           <ol className="mt-2 space-y-1 text-[11px] text-[color:var(--color-ink-2)]">
-            <li>1. <code>createMatch(tc)</code> — stake masuk MatchEscrow</li>
-            <li>2. Share match ID → lawan <code>joinMatch(id)</code> dengan stake yang sama</li>
-            <li>3. Oracle sign hasil → <code>settleMatch</code> auto-payout</li>
-            <li className="text-[color:var(--color-ink-3)]">
-              Pemenang pertama auto-mint badge <b>FIRST_WIN</b> 🏆
-            </li>
+            <li>1. Register game on backend (get gameId)</li>
+            <li>2. <code>MatchEscrow.createMatch(tc)</code> — deposit stake</li>
+            <li>3. Opponent calls <code>joinMatch(id)</code> via lobby → game starts</li>
+            <li>4. Oracle signs result → <code>settleMatch</code> auto-payout</li>
           </ol>
         </section>
 
@@ -188,19 +219,13 @@ export default function PlayPage() {
           </p>
         )}
 
-        {err && (
-          <p className="mt-3 rounded-xl border border-[color:var(--color-danger)]/30 bg-[color:var(--color-danger-soft)] px-3 py-2 text-[11px] text-[color:var(--color-danger)]">
-            {err}
-          </p>
-        )}
-
         <button
           type="button"
           onClick={onCreate}
-          disabled={creating || isConnecting || status === "pending"}
+          disabled={working}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--color-primary)] py-4 text-base font-bold text-white shadow-[var(--shadow-glow-primary)] transition-all active:scale-[0.99] disabled:opacity-70"
         >
-          {creating || isConnecting || status === "pending" ? (
+          {working ? (
             <>
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
               {btnLabel}
@@ -221,7 +246,7 @@ export default function PlayPage() {
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-[color:var(--color-ink-2)]">
           <BoltIcon size={12} className="text-[color:var(--color-amber)]" />
-          Stake di-escrow di MatchEscrow · Celo
+          Stake held in MatchEscrow · Celo
         </p>
       </div>
     </main>

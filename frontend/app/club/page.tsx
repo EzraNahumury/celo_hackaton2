@@ -56,7 +56,7 @@ export default function ClubPage() {
           <Link
             href="/home"
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15"
-            aria-label="Kembali"
+            aria-label="Back"
           >
             <ChevronLeft size={18} />
           </Link>
@@ -70,7 +70,7 @@ export default function ClubPage() {
           </div>
           <h1 className="mt-3 text-2xl font-extrabold">ClubVault.sol</h1>
           <p className="text-xs text-white/80">
-            4–8 anggota · split {CLUB_FIRST_BPS / 100}/{CLUB_SECOND_BPS / 100}/{CLUB_ROLL_BPS / 100}
+            4–8 members · split {CLUB_FIRST_BPS / 100}/{CLUB_SECOND_BPS / 100}/{CLUB_ROLL_BPS / 100}
             {" "}· fee {CLUB_FEE_BPS / 100}%
           </p>
         </div>
@@ -79,17 +79,17 @@ export default function ClubPage() {
       <div className="px-5 pb-8">
         <div className="card -mt-6 relative z-10 flex p-1">
           <TabBtn active={tab === "create"} onClick={() => setTab("create")}>
-            Bikin Klub
+            Create Club
           </TabBtn>
           <TabBtn active={tab === "join"} onClick={() => setTab("join")}>
-            Gabung
+            Join
           </TabBtn>
         </div>
 
         {tab === "create" ? (
           <section className="card mt-4 p-5">
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-              Buy-in per minggu
+              Weekly buy-in
             </h2>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {BUY_IN_OPTIONS.map((b) => {
@@ -117,7 +117,7 @@ export default function ClubPage() {
             </div>
 
             <h2 className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-              Kapasitas member (4–8)
+              Member capacity (4–8)
             </h2>
             <div className="mt-3 flex gap-2">
               {MAX_MEMBER_OPTIONS.map((m) => {
@@ -133,7 +133,7 @@ export default function ClubPage() {
                         : "border-[color:var(--color-border)] bg-white text-[color:var(--color-ink-1)]"
                     }`}
                   >
-                    {m} member
+                    {m} members
                   </button>
                 );
               })}
@@ -141,11 +141,11 @@ export default function ClubPage() {
 
             <div className="mt-4 rounded-2xl bg-[color:var(--color-surface-soft)] p-3 text-[11px] text-[color:var(--color-ink-2)]">
               <p>
-                Pot penuh: {formatCelo(buyIn * maxMembers)} · juara dapat{" "}
+                Full pot: {formatCelo(buyIn * maxMembers)} · winner gets{" "}
                 <b className="text-[color:var(--color-success)]">
                   {formatCelo(buyIn * maxMembers * (CLUB_FIRST_BPS / 10_000) * (1 - CLUB_FEE_BPS / 10_000))}
                 </b>
-                . Carry-over 10% ke minggu depan.
+                . 10% carries over to next week.
               </p>
             </div>
 
@@ -159,7 +159,7 @@ export default function ClubPage() {
                 ? "Submitting…"
                 : !isConnected
                 ? "Connect MiniPay"
-                : `Bikin Klub · ${formatLocal(buyIn, "IDR")}`}
+                : `Create Club · ${formatLocal(buyIn, "IDR")}`}
             </button>
             {createHash && (
               <p className="mt-3 text-center">
@@ -181,7 +181,7 @@ export default function ClubPage() {
             />
 
             <h2 className="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-              Buy-in (harus match pot)
+              Buy-in (must match pot)
             </h2>
             <input
               value={joinBuyIn}
@@ -202,7 +202,7 @@ export default function ClubPage() {
                 ? "Submitting…"
                 : !isConnected
                 ? "Connect MiniPay"
-                : "Gabung Klub"}
+                : "Join Club"}
             </button>
             {joinHash && (
               <p className="mt-3 text-center">
@@ -222,11 +222,11 @@ export default function ClubPage() {
           <div className="flex items-center gap-2">
             <TrophyIcon size={16} className="text-[color:var(--color-amber)]" />
             <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
-              Benefit pemenang
+              Winner benefit
             </p>
           </div>
           <p className="mt-2 text-[11px] text-[color:var(--color-ink-2)]">
-            Juara weekly auto-mint badge soulbound <b>CLUB_CHAMPION</b> di{" "}
+            Weekly winner auto-mints a soulbound <b>CLUB_CHAMPION</b> badge on{" "}
             GambitBadges.sol — ERC-5192 (non-transferable).
           </p>
         </section>
