@@ -322,8 +322,7 @@ describe("finalizePuzzleRound", () => {
     const call = mockWriteContract.mock.calls[0][0];
     expect(call.functionName).toBe("finalizeRound");
     expect(call.address).toBe(PUZZLE_POOL);
-    expect(call.args[0]).toBe(dateToDayNumber("2026-04-19")); // day as bigint
-    expect(call.args[1]).toBe(result.merkleRoot);
+    expect(call.args[0]).toBe(result.merkleRoot); // merkleRoot only (no day param)
   });
 
   it("persists merkle_root to the puzzle row", async () => {

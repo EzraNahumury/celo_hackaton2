@@ -27,14 +27,14 @@ const CELO_SEPOLIA = defineChain({
 });
 
 const ADDRESSES = {
-  hub: "0xd6b0Ce6D872542b623CA5b7dc8ec5635e6dea578" as `0x${string}`,
-  escrow: "0x198aB1bBb866E490ae883f04b273dBd2E38d6d09" as `0x${string}`,
-  puzzle: "0x1cE4Fd99CA3132fB2524abCB42eced20484C2688" as `0x${string}`,
-  club: "0x61857BD62350b5bDF21a33679FC4d8C136BD92ef" as `0x${string}`,
-  badges: "0xb198835a036541e0BFC8d2Fc5Ca45992Ecd25B84" as `0x${string}`,
+  hub: "0xA68141b7b36d1161757e1790BcB5199d4EfFF281" as `0x${string}`,
+  escrow: "0xF8CeF418419E8F1588d6EB26095358CFAF635dC5" as `0x${string}`,
+  puzzle: "0xbE34567ADF30c233103AEbFBB2b940e06DAc7366" as `0x${string}`,
+  club: "0x3665188aB87951Bb42984cFECC14bF5925C21644" as `0x${string}`,
+  badges: "0xB31A2CAB3e267528815067cD6F7d6D7957f9FfB9" as `0x${string}`,
 };
 
-const ORACLE_ADDRESS = "0x3141011f001FB5f1CdE0183ACDdD9434Fa473F70" as `0x${string}`;
+const ORACLE_ADDRESS = "0x03dAC3A27deE42062b1F0D9F69087d4A9A20a3A1" as `0x${string}`;
 const ORACLE_PK = (process.env.ORACLE_PRIVATE_KEY ?? "") as `0x${string}`;
 
 // ── Clients ───────────────────────────────────────────────────────────────────

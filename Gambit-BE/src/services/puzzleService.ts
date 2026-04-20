@@ -1,7 +1,7 @@
 import { supabase } from "../config/supabase";
 import { normalizeAddress } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import { buildPuzzleTree, buildProofFromWinners, dateToDayNumber, Winner } from "./merkleService";
+import { buildPuzzleTree, buildProofFromWinners, Winner } from "./merkleService";
 import { walletClient, publicClient } from "../config/blockchain";
 import { env } from "../config/env";
 import PuzzlePoolABI from "../contracts/PuzzlePool.json";
@@ -214,12 +214,11 @@ export async function finalizePuzzleRound(
   let txHash: string | null = null;
   if (walletClient && env.PUZZLE_POOL_ADDRESS) {
     try {
-      const day = dateToDayNumber(puzzleDate);
       txHash = await walletClient.writeContract({
         address: env.PUZZLE_POOL_ADDRESS,
         abi: PuzzlePoolABI,
         functionName: "finalizeRound",
-        args: [day, merkleRoot],
+        args: [merkleRoot],
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
       logger.info("PuzzlePool.finalizeRound submitted", {

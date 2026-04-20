@@ -149,7 +149,7 @@ Authorization: Bearer <token>
   "gameId": "550e8400-e29b-41d4-a716-446655440000",
   "status": "waiting",
   "depositTx": {
-    "to": "0x198aB1bBb866E490ae883f04b273dBd2E38d6d09",
+    "to": "0xF8CeF418419E8F1588d6EB26095358CFAF635dC5",
     "functionName": "createMatch",
     "args": [180],
     "value": "1000000000000000000"
@@ -211,7 +211,7 @@ Authorization: Bearer <token>
   "black": "0xbob...",
   "stake": 1.0,
   "depositTx": {
-    "to": "0x198aB1bBb866E490ae883f04b273dBd2E38d6d09",
+    "to": "0xF8CeF418419E8F1588d6EB26095358CFAF635dC5",
     "functionName": "joinMatch",
     "args": ["7"],
     "value": "1000000000000000000"
@@ -449,7 +449,7 @@ Create a new game.
   "gameId": "uuid",
   "status": "waiting",
   "depositTx": {
-    "to": "0x198aB1...",
+    "to": "0xF8CeF4...",
     "functionName": "createMatch",
     "args": [180],
     "value": "1000000000000000000"
@@ -481,7 +481,7 @@ Join a waiting game.
   "black": "0xbob...",
   "stake": 1.0,
   "depositTx": {
-    "to": "0x198aB1...",
+    "to": "0xF8CeF4...",
     "functionName": "joinMatch",
     "args": ["7"],
     "value": "1000000000000000000"
@@ -887,11 +887,11 @@ Current number of active WebSocket connections (proxy for online players).
 
 | Contract     | Address                                      |
 | ------------ | -------------------------------------------- |
-| MatchEscrow  | `0x198aB1bBb866E490ae883f04b273dBd2E38d6d09` |
-| GambitHub    | `0xd6b0Ce6D872542b623CA5b7dc8ec5635e6dea578` |
-| PuzzlePool   | `0x1cE4Fd99CA3132fB2524abCB42eced20484C2688` |
-| ClubVault    | `0x61857BD62350b5bDF21a33679FC4d8C136BD92ef` |
-| GambitBadges | `0xb198835a036541e0BFC8d2Fc5Ca45992Ecd25B84` |
+| MatchEscrow  | `0xF8CeF418419E8F1588d6EB26095358CFAF635dC5` |
+| GambitHub    | `0xA68141b7b36d1161757e1790BcB5199d4EfFF281` |
+| PuzzlePool   | `0xbE34567ADF30c233103AEbFBB2b940e06DAc7366` |
+| ClubVault    | `0x3665188aB87951Bb42984cFECC14bF5925C21644` |
+| GambitBadges | `0xB31A2CAB3e267528815067cD6F7d6D7957f9FfB9` |
 
 ### Minimal ABI for FE
 
