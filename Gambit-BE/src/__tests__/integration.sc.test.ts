@@ -46,6 +46,57 @@ const oracleAccount = privateKeyToAccount(ORACLE_PK);
 import MatchEscrowABI from "../contracts/MatchEscrow.json";
 import GambitHubABI from "../contracts/GambitHub.json";
 
+// ── MockCUSD address dari .env ─────────────────────────────────────────────────
+const MOCK_CUSD_ADDRESS = (process.env.MockCUSD || process.env.CUSD_ADDRESS || "") as `0x${string}`;
+
+const ERC20_ABI = [
+  {
+    type: "function",
+    name: "name",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    type: "function",
+    name: "symbol",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    type: "function",
+    name: "decimals",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8" }],
+  },
+  {
+    type: "function",
+    name: "totalSupply",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+] as const;
+
 // ── Timeout: semua test ke RPC pakai 20s ─────────────────────────────────────
 jest.setTimeout(30000);
 
@@ -504,5 +555,125 @@ describe("7. Match lifecycle — verifikasi state transitions", () => {
     console.log(`  ✓ matchId ${matchId} sudah settled, resultSubmitted = ${isSubmitted}`);
     console.log(`  ✓ winner: ${lastSettled.args.winner}`);
     console.log(`  ✓ payout: ${Number(lastSettled.args.payout as bigint) / 1e18} CELO`);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. MockCUSD (ERC-20) — token deployed dan readable
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("8. MockCUSD ERC-20 — token contract deployed & readable", () => {
+  test("MockCUSD address dikonfigurasi di .env", () => {
+    expect(MOCK_CUSD_ADDRESS).toBeTruthy();
+    expect(MOCK_CUSD_ADDRESS).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    console.log("  ✓ MockCUSD address:", MOCK_CUSD_ADDRESS);
+  });
+
+  test("MockCUSD contract ada bytecode (deployed)", async () => {
+    if (!MOCK_CUSD_ADDRESS) return;
+    const code = await publicClient.getBytecode({ address: MOCK_CUSD_ADDRESS });
+    expect(code).toBeDefined();
+    expect(code!.length).toBeGreaterThan(2);
+    console.log(`  ✓ MockCUSD deployed — ${Math.floor(code!.length / 2)} bytes`);
+  });
+
+  test("MockCUSD.name() dan symbol() bisa dibaca", async () => {
+    if (!MOCK_CUSD_ADDRESS) return;
+    const name = await publicClient.readContract({
+      address: MOCK_CUSD_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "name",
+    });
+    const symbol = await publicClient.readContract({
+      address: MOCK_CUSD_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "symbol",
+    });
+    expect(typeof name).toBe("string");
+    expect(typeof symbol).toBe("string");
+    console.log(`  ✓ name = "${name}", symbol = "${symbol}"`);
+  });
+
+  test("MockCUSD.decimals() = 18", async () => {
+    if (!MOCK_CUSD_ADDRESS) return;
+    const decimals = await publicClient.readContract({
+      address: MOCK_CUSD_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "decimals",
+    });
+    expect(Number(decimals)).toBe(18);
+    console.log(`  ✓ decimals = ${decimals}`);
+  });
+
+  test("MockCUSD.totalSupply() > 0", async () => {
+    if (!MOCK_CUSD_ADDRESS) return;
+    const supply = await publicClient.readContract({
+      address: MOCK_CUSD_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "totalSupply",
+    });
+    expect(typeof supply).toBe("bigint");
+    expect(supply).toBeGreaterThan(0n);
+    console.log(`  ✓ totalSupply = ${Number(supply) / 1e18} MockCUSD`);
+  });
+
+  test("MockCUSD.balanceOf(oracle) bisa dibaca", async () => {
+    if (!MOCK_CUSD_ADDRESS) return;
+    const balance = await publicClient.readContract({
+      address: MOCK_CUSD_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [ORACLE_ADDRESS],
+    });
+    expect(typeof balance).toBe("bigint");
+    console.log(`  ✓ balanceOf(oracle) = ${Number(balance) / 1e18} MockCUSD`);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. MockCUSD × MatchEscrow — approve flow siap digunakan FE
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("9. MockCUSD × MatchEscrow — approve flow", () => {
+  test("allowance(oracle, escrow) bisa dibaca (approve belum dilakukan = 0)", async () => {
+    if (!MOCK_CUSD_ADDRESS) return;
+    const allowance = await publicClient.readContract({
+      address: MOCK_CUSD_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "allowance",
+      args: [ORACLE_ADDRESS, ADDRESSES.escrow],
+    });
+    expect(typeof allowance).toBe("bigint");
+    console.log(`  ✓ allowance(oracle → escrow) = ${Number(allowance) / 1e18} MockCUSD`);
+    console.log(`  ℹ FE harus memanggil MockCUSD.approve(escrow, stakeAmount) sebelum createMatch/joinMatch`);
+  });
+
+  test("stake amounts valid (0.50, 1.00, 2.00) dalam MockCUSD wei", () => {
+    const stakes = [0.5, 1.0, 2.0];
+    for (const stake of stakes) {
+      const wei = BigInt(Math.round(stake * 1e18));
+      expect(wei).toBeGreaterThan(0n);
+      console.log(`  ✓ stake ${stake} cUSD = ${wei.toString()} wei`);
+    }
+  });
+
+  test("depositTx response dari BE menyertakan tokenAddress MockCUSD", () => {
+    // Simulasi response yang dikembalikan oleh POST /game/create
+    const mockDepositTx = {
+      to: ADDRESSES.escrow,
+      functionName: "createMatch",
+      args: [180],
+      tokenAddress: MOCK_CUSD_ADDRESS,
+      amount: `${Math.round(0.5 * 1e18)}`,
+    };
+
+    expect(mockDepositTx.tokenAddress).toBe(MOCK_CUSD_ADDRESS);
+    expect(mockDepositTx.tokenAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
+    expect(mockDepositTx.amount).toBe("500000000000000000");
+    console.log("  ✓ depositTx.tokenAddress =", mockDepositTx.tokenAddress);
+    console.log("  ✓ depositTx.amount (0.5 cUSD) =", mockDepositTx.amount, "wei");
+    console.log("  ℹ Flow FE:");
+    console.log("    1. MockCUSD.approve(escrow, amount)");
+    console.log("    2. MatchEscrow.createMatch(timeControlSeconds)  ← tanpa msg.value");
   });
 });

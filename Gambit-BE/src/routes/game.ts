@@ -108,10 +108,10 @@ router.post("/create", authMiddleware, async (req: Request, res: Response): Prom
       depositTx: {
         to: process.env.MATCH_ESCROW_ADDRESS || null,
         functionName: "createMatch",
-        // FE calls: matchEscrow.createMatch(timeControlSeconds, { value: stakeWei })
         args: [timeControlSeconds],
-        // FE must set msg.value = stakeWei (convert CELO to wei: stake * 1e18)
-        value: `${Math.round(parseFloat(stake) * 1e18)}`,
+        // ERC-20 flow: FE must approve tokenAddress first, then call createMatch
+        tokenAddress: process.env.MockCUSD || process.env.CUSD_ADDRESS || null,
+        amount: `${Math.round(parseFloat(stake) * 1e18)}`,
       },
     });
   } catch (err) {
@@ -183,9 +183,10 @@ router.post("/join", authMiddleware, async (req: Request, res: Response): Promis
       depositTx: {
         to: process.env.MATCH_ESCROW_ADDRESS || null,
         functionName: "joinMatch",
-        // FE calls: matchEscrow.joinMatch(matchId, { value: stakeWei })
         args: [game.onchain_game_id],
-        value: `${Math.round(game.stake_amount * 1e18)}`,
+        // ERC-20 flow: FE must approve tokenAddress first, then call joinMatch
+        tokenAddress: process.env.MockCUSD || process.env.CUSD_ADDRESS || null,
+        amount: `${Math.round(game.stake_amount * 1e18)}`,
       },
     });
   } catch (err) {

@@ -31,6 +31,9 @@ export const env = {
   // Legacy alias kept for backwards-compat during migration
   CHESS_ESCROW_ADDRESS: (process.env.MATCH_ESCROW_ADDRESS ||
     process.env.CHESS_ESCROW_ADDRESS) as `0x${string}` | undefined,
+  // ERC-20 token used for stakes (MockCUSD on testnet, cUSD on mainnet)
+  CUSD_ADDRESS: (process.env.MockCUSD ||
+    process.env.CUSD_ADDRESS) as `0x${string}` | undefined,
 
   JWT_SECRET: process.env.JWT_SECRET || "dev-secret-change-me-in-production",
 
