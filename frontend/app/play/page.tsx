@@ -3,45 +3,58 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { usePublicClient } from "wagmi";
 import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
 import { BoltIcon, ChevronLeft, PlayIcon, SparkleIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import { useWallet } from "@/hooks/use-connect";
 import { useCreateMatch } from "@/hooks/use-match-escrow";
 import { useSession } from "@/hooks/use-session";
+import { useApproveStakeToken } from "@/hooks/use-stake-token";
 import { api } from "@/lib/api";
-import { CONTRACTS_CONFIGURED, tcLabelToSeconds, MATCH_FEE_BPS } from "@/lib/contracts";
-import { formatCelo, formatLocal, truncateAddress } from "@/lib/format";
+import { ACTIVE_CHAIN, CONTRACTS, MATCH_FEE_BPS, STAKE_TOKEN, tcLabelToSeconds } from "@/lib/contracts";
+import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
 import type { StakeAmount, TimeControl } from "@/types/api";
 
 const STAKES = [
-  { value: 0.05, label: "0.05", code: "0.05" as StakeAmount },
-  { value: 0.1, label: "0.10", code: "0.10" as StakeAmount },
-  { value: 0.2, label: "0.20", code: "0.20" as StakeAmount },
+  { value: 0.5, label: "0.50", code: "0.50" as StakeAmount },
+  { value: 1.0, label: "1.00", code: "1.00" as StakeAmount },
+  { value: 2.0, label: "2.00", code: "2.00" as StakeAmount },
 ] as const;
 
 const TIME_CONTROLS = [
-  { value: "1+0", label: "Bullet", sub: "1 mnt" },
-  { value: "3+0", label: "Blitz", sub: "3 mnt" },
+  { value: "1+0", label: "Bullet", sub: "1 min" },
+  { value: "3+0", label: "Blitz", sub: "3 min" },
   { value: "3+2", label: "Blitz+2", sub: "3 + 2" },
   { value: "5+3", label: "Rapid", sub: "5 + 3" },
 ] as const;
 
+type Phase = "idle" | "approve" | "deposit";
+
 export default function PlayPage() {
   const router = useRouter();
+  const publicClient = usePublicClient({ chainId: ACTIVE_CHAIN.id });
   const { address, isConnected, connect, isConnecting } = useWallet();
   const { token, loading: authLoading } = useSession();
-  const { createMatch, isPending: creating, hash } = useCreateMatch();
-  const { status } = useTxStatus(hash);
+  const { approve, isPending: approving } = useApproveStakeToken();
+  const { createMatch, isPending: creating } = useCreateMatch();
   const toast = useToast();
 
-  const [stake, setStake] = useState<number>(0.1);
+  const [stake, setStake] = useState<number>(1.0);
   const [tc, setTc] = useState<string>("3+0");
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const { status } = useTxStatus(txHash);
 
   const pot = stake * 2;
   const fee = (pot * MATCH_FEE_BPS) / 10_000;
   const potential = pot - fee;
+
+  const waitForReceipt = async (hash: `0x${string}`) => {
+    if (!publicClient) throw new Error("Wallet RPC client is not ready");
+    await publicClient.waitForTransactionReceipt({ hash });
+  };
 
   const onCreate = async () => {
     if (!isConnected) {
@@ -57,10 +70,11 @@ export default function PlayPage() {
       return;
     }
 
-    const stakeCode = STAKES.find((s) => s.value === stake)?.code ?? "0.10";
+    const stakeCode = STAKES.find((s) => s.value === stake)?.code ?? "1.00";
     setBusy(true);
+    setPhase("idle");
+
     try {
-      // 1. Register game on BE → returns gameId + depositTx guide.
       const game = await api.createGame({
         stake: stakeCode,
         timeControl: tc as TimeControl,
@@ -68,36 +82,65 @@ export default function PlayPage() {
         mode: "pvp",
       });
 
-      // 2. Execute on-chain deposit using BE-provided parameters (or fallback to hook).
-      if (CONTRACTS_CONFIGURED) {
-        await createMatch({
-          timeControlSeconds: tcLabelToSeconds(tc),
-          stakeCelo: stake,
-        });
+      const depositTx = game.depositTx;
+      if (!depositTx || depositTx.functionName !== "createMatch") {
+        throw new Error("Backend did not return createMatch instructions");
       }
 
-      // 3. BE event watcher links MatchCreated → onchain_game_id; go wait for opponent.
+      const escrowAddress = depositTx.to ?? CONTRACTS.matchEscrow;
+      const timeControlSeconds = Number(depositTx.args[0]);
+
+      if (!escrowAddress || escrowAddress.length !== 42 || escrowAddress === "0x") {
+        throw new Error("MatchEscrow address is missing");
+      }
+      if (!Number.isFinite(timeControlSeconds) || timeControlSeconds <= 0) {
+        throw new Error("Backend returned an invalid time control");
+      }
+
+      setPhase("approve");
+      const approveHash = await approve({
+        tokenAddress: depositTx.tokenAddress,
+        spender: escrowAddress,
+        amountWei: BigInt(depositTx.amount),
+      });
+      setTxHash(approveHash);
+      await waitForReceipt(approveHash);
+
+      setPhase("deposit");
+      const createHash = await createMatch({
+        escrowAddress,
+        timeControlSeconds,
+      });
+      setTxHash(createHash);
+      await waitForReceipt(createHash);
+
       router.push(`/game?id=${encodeURIComponent(game.gameId)}`);
     } catch (e) {
       toast.showError(e);
     } finally {
+      setPhase("idle");
       setBusy(false);
     }
   };
 
-  const working = busy || creating || isConnecting || status === "pending" || authLoading;
+  const working =
+    busy || approving || creating || isConnecting || authLoading || status === "pending";
 
   const btnLabel = !isConnected
     ? "Connect MiniPay"
     : authLoading
-    ? "Signing in…"
-    : status === "pending"
-    ? "Confirm in wallet…"
-    : creating
-    ? "Depositing stake…"
-    : busy
-    ? "Creating match…"
-    : `Create match · ${formatLocal(stake, "IDR")}`;
+    ? "Signing in..."
+    : phase === "approve" && status === "pending"
+    ? "Approval pending..."
+    : phase === "approve" || approving
+    ? `Approving ${STAKE_TOKEN.symbol}...`
+    : phase === "deposit" && status === "pending"
+    ? "Deposit pending..."
+    : phase === "deposit"
+    ? "Confirm deposit in wallet..."
+    : busy || creating
+    ? "Creating match..."
+    : `Create match - ${formatStableLocal(stake, "IDR")}`;
 
   return (
     <main className="flex-1">
@@ -124,18 +167,18 @@ export default function PlayPage() {
             If you win
           </p>
           <h1 className="mt-1 text-5xl font-extrabold tracking-tight">
-            {formatLocal(potential, "IDR")}
+            {formatStableLocal(potential, "IDR")}
           </h1>
           <p className="mt-1 text-xs text-white/80">
-            Pot {formatCelo(pot)} · {(MATCH_FEE_BPS / 100).toFixed(0)}% fee
+            Pot {formatCusd(pot)} - {(MATCH_FEE_BPS / 100).toFixed(0)}% fee
           </p>
         </section>
       </div>
 
       <div className="px-5 pb-8">
-        <section className="card -mt-5 p-5 relative z-10">
+        <section className="card relative z-10 -mt-5 p-5">
           <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-            Pick Stake (CELO)
+            Pick Stake ({STAKE_TOKEN.symbol})
           </h2>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {STAKES.map((s) => {
@@ -159,10 +202,10 @@ export default function PlayPage() {
                       active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-ink-0)]"
                     }`}
                   >
-                    {s.label} CELO
+                    {s.label} {STAKE_TOKEN.symbol}
                   </p>
                   <p className="text-[11px] text-[color:var(--color-ink-2)]">
-                    {formatLocal(s.value, "IDR")}
+                    {formatStableLocal(s.value, "IDR")}
                   </p>
                 </button>
               );
@@ -206,10 +249,10 @@ export default function PlayPage() {
             <p className="text-sm font-bold text-[color:var(--color-ink-0)]">On-chain flow</p>
           </div>
           <ol className="mt-2 space-y-1 text-[11px] text-[color:var(--color-ink-2)]">
-            <li>1. Register game on backend (get gameId)</li>
-            <li>2. <code>MatchEscrow.createMatch(tc)</code> — deposit stake</li>
-            <li>3. Opponent calls <code>joinMatch(id)</code> via lobby → game starts</li>
-            <li>4. Oracle signs result → <code>settleMatch</code> auto-payout</li>
+            <li>1. Register match on backend and receive depositTx instructions.</li>
+            <li>2. Approve {STAKE_TOKEN.symbol} for MatchEscrow using the BE amount.</li>
+            <li>3. Call MatchEscrow.createMatch(timeControlSeconds) without msg.value.</li>
+            <li>4. Opponent approves + joins from Lobby, then oracle settles the result.</li>
           </ol>
         </section>
 
@@ -238,15 +281,15 @@ export default function PlayPage() {
           )}
         </button>
 
-        {hash && (
+        {txHash && (
           <p className="mt-3 text-center">
-            <TxExplorerLink hash={hash} />
+            <TxExplorerLink hash={txHash} />
           </p>
         )}
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-[color:var(--color-ink-2)]">
           <BoltIcon size={12} className="text-[color:var(--color-amber)]" />
-          Stake held in MatchEscrow · Celo
+          Stake held in MatchEscrow - {STAKE_TOKEN.symbol}
         </p>
       </div>
     </main>

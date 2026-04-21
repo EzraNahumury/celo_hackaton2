@@ -29,9 +29,9 @@ export const GameMode = {
 export type GameMode = (typeof GameMode)[keyof typeof GameMode];
 
 export const StakeAmount = {
-  SMALL: "0.05",
-  MEDIUM: "0.10",
-  LARGE: "0.20",
+  SMALL: "0.50",
+  MEDIUM: "1.00",
+  LARGE: "2.00",
 } as const;
 export type StakeAmount = (typeof StakeAmount)[keyof typeof StakeAmount];
 
@@ -47,12 +47,14 @@ export const TimeControl = {
 export type TimeControl = (typeof TimeControl)[keyof typeof TimeControl];
 
 // BE returns depositTx for on-chain MatchEscrow.createMatch / joinMatch.
-// `value` is a decimal-string in wei. `args` holds either [tcSeconds] (create) or [matchId] (join).
+// Stakes are approved via ERC-20 first, so FE must use `tokenAddress` +
+// `amount` rather than native msg.value.
 export type DepositTx = {
   to: WalletAddress | null;
+  tokenAddress: WalletAddress | null;
   functionName: "createMatch" | "joinMatch";
-  args: [number] | [string];
-  value: string;
+  args: [number | string | null];
+  amount: string;
 };
 
 // ---- Auth ----

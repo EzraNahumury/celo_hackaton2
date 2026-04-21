@@ -7,12 +7,11 @@ import { ChevronRight, SparkleIcon, TrophyIcon } from "@/components/icons";
 import { useWallet } from "@/hooks/use-connect";
 import { usePlayerHistory } from "@/hooks/use-player-history";
 import { usePlayerStats } from "@/hooks/use-player-stats";
-import { ACTIVE_CHAIN } from "@/lib/contracts";
-import { formatLocal, truncateAddress } from "@/lib/format";
+import { ACTIVE_CHAIN, STAKE_TOKEN } from "@/lib/contracts";
+import { formatStableLocal, truncateAddress } from "@/lib/format";
 import type {
   PlayerGameRow,
   PlayerTransactionRow,
-  TxType,
   WalletAddress,
 } from "@/types/api";
 
@@ -113,7 +112,7 @@ export default function HistoryPage() {
             Total Earnings
           </p>
           <h1 className="mt-1 text-4xl font-extrabold tracking-tight">
-            {stats ? <>+{formatLocal(totalEarned, "IDR")}</> : statsLoading ? "…" : "—"}
+            {stats ? <>+{formatStableLocal(totalEarned, "IDR")}</> : statsLoading ? "…" : "—"}
           </h1>
           <p className="mt-1 text-xs text-white/80">
             {stats ? `total · on ${ACTIVE_CHAIN.name}` : ACTIVE_CHAIN.name}
@@ -281,7 +280,7 @@ function HistoryRow({
         </div>
         <p className={`text-sm font-bold ${deltaClass}`}>
           {net > 0 ? "+" : net < 0 ? "−" : ""}
-          {formatLocal(Math.abs(net), "IDR")}
+          {formatStableLocal(Math.abs(net), "IDR")}
         </p>
         <span
           aria-hidden
@@ -311,18 +310,18 @@ function HistoryRow({
             })()}
             <DetailRow
               label="Stake"
-              value={`${Number(game.stake_amount).toFixed(2)} CELO`}
+              value={`${Number(game.stake_amount).toFixed(2)} ${STAKE_TOKEN.symbol}`}
             />
             {payoutTx && (
               <DetailRow
                 label="Payout"
-                value={`${Number(payoutTx.amount).toFixed(4)} CELO`}
+                value={`${Number(payoutTx.amount).toFixed(4)} ${STAKE_TOKEN.symbol}`}
               />
             )}
             {refundTx && (
               <DetailRow
                 label="Refund"
-                value={`${Number(refundTx.amount).toFixed(4)} CELO`}
+                value={`${Number(refundTx.amount).toFixed(4)} ${STAKE_TOKEN.symbol}`}
               />
             )}
           </dl>

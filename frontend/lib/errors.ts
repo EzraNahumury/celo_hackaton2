@@ -30,12 +30,21 @@ export function humanizeError(err: unknown): FriendlyError {
     };
   }
 
-  // Insufficient balance (gas + value).
+  if (lc.includes("faucet: wait 24h") || lc.includes("wait 24h")) {
+    return {
+      title: "Faucet cooling down",
+      message: "This wallet already claimed Mock cUSD in the last 24 hours.",
+      hint: "Try again after the cooldown expires.",
+      tone: "info",
+    };
+  }
+
+  // Insufficient balance (gas + token balance).
   if (lc.includes("insufficient funds") || lc.includes("exceeds balance")) {
     return {
       title: "Insufficient balance",
-      message: "You don't have enough CELO for the stake + gas.",
-      hint: "Pick a smaller stake or top up from the Celo Sepolia faucet.",
+      message: "You need enough cUSD for the stake and enough CELO for gas.",
+      hint: "Claim Mock cUSD from the in-app faucet, then keep a little CELO for gas.",
       tone: "danger",
     };
   }

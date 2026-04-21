@@ -3,7 +3,6 @@
 import { useWriteContract, useReadContract } from "wagmi";
 import { matchEscrowAbi } from "@/lib/abis/match-escrow";
 import { ACTIVE_CHAIN, CONTRACTS, CONTRACTS_CONFIGURED, type MatchState } from "@/lib/contracts";
-import { celoToWei } from "@/lib/format";
 import { useEnsureChain } from "./use-ensure-chain";
 
 export type ChainMatch = {
@@ -21,16 +20,21 @@ export function useCreateMatch() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
   const { ensure } = useEnsureChain();
 
-  const createMatch = async (opts: { timeControlSeconds: number; stakeCelo: number }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+  const createMatch = async (opts: {
+    timeControlSeconds: number;
+    escrowAddress?: `0x${string}`;
+  }) => {
+    const escrowAddress = opts.escrowAddress ?? CONTRACTS.matchEscrow;
+    if (!escrowAddress || escrowAddress.length !== 42 || escrowAddress === "0x") {
+      throw new Error("MatchEscrow is not configured");
+    }
     await ensure();
     return writeContractAsync({
       chainId: ACTIVE_CHAIN.id,
-      address: CONTRACTS.matchEscrow,
+      address: escrowAddress,
       abi: matchEscrowAbi,
       functionName: "createMatch",
       args: [BigInt(opts.timeControlSeconds)],
-      value: celoToWei(opts.stakeCelo),
     });
   };
 
@@ -41,16 +45,21 @@ export function useJoinMatch() {
   const { writeContractAsync, isPending, error, data } = useWriteContract();
   const { ensure } = useEnsureChain();
 
-  const joinMatch = async (opts: { matchId: bigint; stakeCelo: number }) => {
-    if (!CONTRACTS_CONFIGURED) throw new Error("Contracts not deployed");
+  const joinMatch = async (opts: {
+    matchId: bigint;
+    escrowAddress?: `0x${string}`;
+  }) => {
+    const escrowAddress = opts.escrowAddress ?? CONTRACTS.matchEscrow;
+    if (!escrowAddress || escrowAddress.length !== 42 || escrowAddress === "0x") {
+      throw new Error("MatchEscrow is not configured");
+    }
     await ensure();
     return writeContractAsync({
       chainId: ACTIVE_CHAIN.id,
-      address: CONTRACTS.matchEscrow,
+      address: escrowAddress,
       abi: matchEscrowAbi,
       functionName: "joinMatch",
       args: [opts.matchId],
-      value: celoToWei(opts.stakeCelo),
     });
   };
 

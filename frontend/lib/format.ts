@@ -14,6 +14,17 @@ export const CELO_RATES: Record<CurrencyCode, number> = {
   USD: 0.5,
 };
 
+// cUSD is dollar-denominated, so its local conversion follows USD FX.
+export const STABLE_RATES: Record<CurrencyCode, number> = {
+  IDR: 15000,
+  NGN: 1580,
+  KES: 128,
+  PHP: 56,
+  GHS: 15.2,
+  ZAR: 18.4,
+  USD: 1,
+};
+
 export const CURRENCY_LOCALE: Record<CurrencyCode, Locale> = {
   IDR: "id-ID",
   NGN: "en-NG",
@@ -40,12 +51,36 @@ export function formatLocal(celo: number, currency: CurrencyCode = "IDR"): strin
   }).format(v);
 }
 
+export function stableToLocal(amount: number, currency: CurrencyCode): number {
+  return amount * STABLE_RATES[currency];
+}
+
+export function formatStableLocal(amount: number, currency: CurrencyCode = "IDR"): string {
+  const v = stableToLocal(amount, currency);
+  const locale = CURRENCY_LOCALE[currency];
+  const digits = currency === "IDR" || currency === "NGN" || currency === "KES" ? 0 : 2;
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(v);
+}
+
 export function formatCelo(celo: number, decimals = 2): string {
   return `${celo.toFixed(decimals)} CELO`;
 }
 
+export function formatCusd(cusd: number, decimals = 2): string {
+  return `${cusd.toFixed(decimals)} cUSD`;
+}
+
 export function formatCeloWei(wei: bigint, decimals = 2): string {
   return `${Number(formatUnits(wei, 18)).toFixed(decimals)} CELO`;
+}
+
+export function formatCusdWei(wei: bigint, decimals = 2): string {
+  return `${Number(formatUnits(wei, 18)).toFixed(decimals)} cUSD`;
 }
 
 export function weiToLocal(wei: bigint, currency: CurrencyCode = "IDR"): string {

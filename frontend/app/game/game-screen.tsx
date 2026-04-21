@@ -10,7 +10,7 @@ import { useToast } from "@/components/toast";
 import { useWallet } from "@/hooks/use-connect";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
-import { formatCelo, formatLocal, truncateAddress } from "@/lib/format";
+import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
 import { connectGameWs, type GameSocket } from "@/lib/ws";
 import type { GameResult, GameState, WsServerEvent } from "@/types/api";
 
@@ -398,10 +398,10 @@ function LiveGame({
               If you win
             </p>
             <p className="text-lg font-bold text-[color:var(--color-primary)]">
-              {formatLocal(potential, "IDR")}
+              {formatStableLocal(potential, "IDR")}
             </p>
             <p className="text-[11px] text-[color:var(--color-ink-2)]">
-              Stake {formatCelo(stake)} · in escrow
+              Stake {formatCusd(stake)} · in escrow
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -570,7 +570,7 @@ function ResultModal({
           </h2>
           <p className={`mt-3 text-4xl font-extrabold tracking-tight ${accentClass}`}>
             {amount > 0 ? "+" : amount < 0 ? "−" : ""}
-            {formatLocal(Math.abs(amount), "IDR")}
+            {formatStableLocal(Math.abs(amount), "IDR")}
           </p>
           <p className="mt-1 text-xs text-[color:var(--color-ink-2)]">
             {reason ? `Ended · ${reason}` : "Settled on Celo"}
@@ -735,9 +735,9 @@ function OfflineBotScreen({ stake, tc }: { stake: number; tc: string }) {
               If you win
             </p>
             <p className="text-lg font-bold text-[color:var(--color-primary)]">
-              {formatLocal(potential, "IDR")}
+              {formatStableLocal(potential, "IDR")}
             </p>
-            <p className="text-[11px] text-[color:var(--color-ink-2)]">Stake {formatCelo(stake)} · preview</p>
+            <p className="text-[11px] text-[color:var(--color-ink-2)]">Stake {formatCusd(stake)} · preview</p>
           </div>
           <span className="rounded-full bg-[color:var(--color-sky-100)] px-3 py-1 text-[11px] font-semibold text-[color:var(--color-ink-1)]">
             Move {Math.ceil(moveCount / 2) || 1} · {turn === "w" ? "You" : "Bot"}

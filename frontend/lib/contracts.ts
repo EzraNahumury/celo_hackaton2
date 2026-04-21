@@ -34,6 +34,8 @@ export const celoMainnet = defineChain({
 export const ACTIVE_CHAIN =
   process.env.NEXT_PUBLIC_CELO_NETWORK === "mainnet" ? celoMainnet : celoSepolia;
 
+const DEFAULT_TESTNET_CUSD = "0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F";
+
 export const CONTRACTS = {
   hub: (process.env.NEXT_PUBLIC_GAMBIT_HUB ?? "") as `0x${string}`,
   matchEscrow: (process.env.NEXT_PUBLIC_MATCH_ESCROW ?? "") as `0x${string}`,
@@ -45,6 +47,20 @@ export const CONTRACTS = {
 export const CONTRACTS_CONFIGURED = Object.values(CONTRACTS).every(
   (a) => a && a.length === 42 && a !== "0x",
 );
+
+export const STAKE_TOKEN = {
+  address: (
+    process.env.NEXT_PUBLIC_CUSD_ADDRESS ??
+    (ACTIVE_CHAIN.id === celoSepolia.id ? DEFAULT_TESTNET_CUSD : "")
+  ) as `0x${string}`,
+  symbol: "cUSD",
+  name: ACTIVE_CHAIN.id === celoSepolia.id ? "Mock Celo Dollar" : "Celo Dollar",
+  faucetEnabled: ACTIVE_CHAIN.id === celoSepolia.id,
+  faucetAmount: 100,
+} as const;
+
+export const STAKE_TOKEN_CONFIGURED =
+  !!STAKE_TOKEN.address && STAKE_TOKEN.address.length === 42 && STAKE_TOKEN.address !== "0x";
 
 export const MATCH_FEE_BPS = 300;
 export const CLUB_FEE_BPS = 200;
