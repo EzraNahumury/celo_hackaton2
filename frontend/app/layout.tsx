@@ -23,28 +23,100 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// Minimal defensive shim. Mobile Safari aborts the whole page ("This page
-// couldn't load") if an uncaught error fires during hydration — typically
-// from wallet extensions monkey-patching History. We DON'T touch History
-// prototype here (iframe-based restoration crashes some mobile WebViews);
-// instead we install a capture-phase error swallower that preserves
-// navigation when a wallet's pushState listener throws on a null `this`.
+// Wraps History.pushState / replaceState to swallow the specific
+// `Cannot read properties of null (reading 'dispatchEvent')` TypeError
+// that wallet / analytics browser extensions throw when they monkey-
+// patch History and then get called with a `this` they don't expect.
+//
+// Next.js 16's router calls pushState during every client-side
+// navigation, so one misbehaving extension surfaces as the built-in
+// "This page couldn't load" error on every menu switch. Installing the
+// wrapper in <head> before any extension touches History guarantees our
+// try/catch runs outside the extension's override and native state is
+// still written to the history stack.
+//
+// The window-level capture-phase listener is kept as a second line of
+// defence in case the extension re-wraps pushState after our shim.
 const HISTORY_SHIM = `(function(){try{
-  var isNoise = function(x){
+  var isDispatchNoise = function(x){
     var m = x && (x.message || (typeof x === 'string' ? x : ''));
     return !!m && String(m).indexOf('dispatchEvent') !== -1;
   };
+  // Cache the native implementations as early as possible. Even if an
+  // extension wrapped History first, calling the cached reference keeps
+  // state-writes functional because we bypass the extension wrapper.
+  var nativePush = History.prototype.pushState;
+  var nativeReplace = History.prototype.replaceState;
+  var safeWrap = function(name, native){
+    var wrapped = function(){
+      try {
+        // Force \`this\` to the real window.history. The buggy extension
+        // wrapper accesses \`this.dispatchEvent\` on whatever \`this\` was,
+        // but the native impl only requires a History instance — it
+        // doesn't care where the call originated. Normalising here
+        // removes the null-receiver crash entirely.
+        return native.apply(window.history, arguments);
+      } catch (err) {
+        if (err && err instanceof TypeError && isDispatchNoise(err)) return;
+        throw err;
+      }
+    };
+    wrapped.__gambitSafe = true;
+    try {
+      Object.defineProperty(History.prototype, name, {
+        value: wrapped,
+        writable: true,
+        configurable: true,
+      });
+    } catch(_){
+      try { History.prototype[name] = wrapped; } catch(__){}
+    }
+  };
+  var install = function(){
+    if (History.prototype.pushState && !History.prototype.pushState.__gambitSafe) {
+      safeWrap('pushState', nativePush);
+    }
+    if (History.prototype.replaceState && !History.prototype.replaceState.__gambitSafe) {
+      safeWrap('replaceState', nativeReplace);
+    }
+  };
+  install();
+  // Re-install periodically in case an extension monkey-patches History
+  // again after page scripts run. 40 ticks × 250ms = 10s covers the
+  // typical window where mobile-simulator / wallet extensions initialise.
+  var reinstalls = 0;
+  var tid = setInterval(function(){
+    install();
+    reinstalls++;
+    if (reinstalls > 40) clearInterval(tid);
+  }, 250);
+  document.addEventListener('visibilitychange', install, true);
+
+  // Belt-and-braces: swallow the error if it still escapes (e.g. the
+  // extension dispatches the broken event asynchronously via setTimeout).
+  // Capture phase + stopImmediatePropagation prevents Next.js's dev
+  // overlay from picking it up.
+  var prevOnError = window.onerror;
+  window.onerror = function(msg, src, ln, col, err){
+    if (isDispatchNoise(err) || isDispatchNoise(msg)) return true;
+    return prevOnError ? prevOnError.apply(this, arguments) : false;
+  };
   window.addEventListener('error', function(ev){
-    if (isNoise(ev.error) || isNoise(ev.message)) {
+    if (isDispatchNoise(ev.error) || isDispatchNoise(ev.message)) {
       ev.preventDefault();
       if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
       return false;
     }
   }, true);
   window.addEventListener('unhandledrejection', function(ev){
-    if (isNoise(ev.reason)) ev.preventDefault();
+    if (isDispatchNoise(ev.reason)) ev.preventDefault();
   }, true);
-}catch(_){}})();`;
+
+  window.__gambitShim = { installedAt: Date.now(), version: 4 };
+  try { console.info('[gambit] History shim v4 installed'); } catch(_){}
+}catch(err){
+  try { console.error('[gambit] shim error', err); } catch(_){}
+}})();`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

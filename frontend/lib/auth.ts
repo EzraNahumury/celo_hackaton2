@@ -6,8 +6,30 @@ const TOKEN_KEY = "gambit:token";
 const ADDR_KEY = "gambit:addr";
 const EXPIRES_KEY = "gambit:expires";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// See lib/api.ts for the rationale — when the frontend is opened from a
+// phone or LAN host, a hardcoded `localhost` target points at the device
+// itself and every auth call fails. Mirror that host-rewrite here.
+function resolveApiUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  if (typeof window === "undefined") return configured;
+  try {
+    const pageHost = window.location.hostname;
+    const apiUrl = new URL(configured);
+    const apiHostIsLocal =
+      apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
+    const pageHostIsLocal =
+      pageHost === "localhost" || pageHost === "127.0.0.1";
+    if (apiHostIsLocal && !pageHostIsLocal) {
+      apiUrl.hostname = pageHost;
+      return apiUrl.toString().replace(/\/$/, "");
+    }
+  } catch {
+    // fall through to configured
+  }
+  return configured;
+}
+
+const API_URL = resolveApiUrl();
 
 function now() {
   return Math.floor(Date.now() / 1000);

@@ -1,16 +1,31 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import type { Connector } from "wagmi";
 import { clearAuth } from "@/lib/auth";
 import { DISCONNECT_FLAG, useConnectDialog } from "@/providers/web3-provider";
 
 export function useWallet() {
-  const { address, isConnected, chain, connector } = useAccount();
+  const account = useAccount();
   const { connect, connectors, isPending, error } = useConnect();
   const { disconnect: wagmiDisconnect } = useDisconnect();
   const { openPicker } = useConnectDialog();
+
+  // Hydration guard. Wagmi reads connector state from localStorage on
+  // mount, so `isConnected` flips from false (server) to true (client) in
+  // the same render — Next.js 16 + Turbopack treats that as a hydration
+  // error and tears the subtree down, which surfaces as "This page
+  // couldn't load" on mobile. Gate the real values behind a mount flag
+  // so the initial client render matches the server's "not connected"
+  // snapshot, then the real state appears on the next paint.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const address = mounted ? account.address : undefined;
+  const isConnected = mounted ? account.isConnected : false;
+  const chain = mounted ? account.chain : undefined;
+  const connector = mounted ? account.connector : undefined;
 
   const clearDisconnectFlag = () => {
     if (typeof window !== "undefined") {

@@ -48,6 +48,7 @@ export default function HomePage() {
               alt="Gambit"
               width={56}
               height={56}
+              priority
               className="h-full w-full scale-125 object-contain"
             />
           </Link>

@@ -24,8 +24,32 @@ import type {
 } from "@/types/api";
 import { getAuthToken } from "./auth";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+// Resolve the API origin at call time rather than baking `localhost` in.
+// On a phone, `localhost` is the phone itself — the dev-machine backend is
+// unreachable. When NEXT_PUBLIC_API_URL still points at localhost but the
+// page was opened from a LAN IP / tunnel host, rewrite the hostname so API
+// calls go to the same machine serving the frontend (port 3001).
+function resolveApiUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  if (typeof window === "undefined") return configured;
+  try {
+    const pageHost = window.location.hostname;
+    const apiUrl = new URL(configured);
+    const apiHostIsLocal =
+      apiUrl.hostname === "localhost" || apiUrl.hostname === "127.0.0.1";
+    const pageHostIsLocal =
+      pageHost === "localhost" || pageHost === "127.0.0.1";
+    if (apiHostIsLocal && !pageHostIsLocal) {
+      apiUrl.hostname = pageHost;
+      return apiUrl.toString().replace(/\/$/, "");
+    }
+  } catch {
+    // fall through to configured
+  }
+  return configured;
+}
+
+const API_URL = /* @__PURE__ */ (() => resolveApiUrl())();
 
 export class ApiError extends Error {
   constructor(public code: string, message: string, public status: number) {
