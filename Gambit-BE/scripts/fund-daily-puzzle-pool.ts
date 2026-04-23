@@ -23,6 +23,8 @@ const ERC20_ABI = [
     outputs: [{ type: "bool" }] },
   { name: "balanceOf",   type: "function", stateMutability: "view",
     inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
+  { name: "faucet",      type: "function", stateMutability: "nonpayable",
+    inputs: [], outputs: [] },
 ] as const;
 
 const POOL_ABI = [
@@ -79,8 +81,21 @@ async function main() {
   console.log("Pool cUSD balance   :", formatUnits(poolBal, 18));
 
   if (walletBal < amountWei) {
-    console.error(`\n✗ Insufficient balance. Need ${amountCusd} cUSD, have ${formatUnits(walletBal, 18)}`);
-    process.exit(1);
+    console.log(`\nWallet balance insufficient (${formatUnits(walletBal, 18)}). Calling faucet()...`);
+    const faucetTx = await walletClient.writeContract({
+      address: cusdAddr,
+      abi: ERC20_ABI,
+      functionName: "faucet",
+      args: [],
+    });
+    await publicClient.waitForTransactionReceipt({ hash: faucetTx });
+    console.log("  faucet tx:", faucetTx, "✓");
+    const newBal = await publicClient.readContract({ address: cusdAddr, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address] });
+    console.log("  New wallet balance:", formatUnits(newBal, 18), "cUSD");
+    if (newBal < amountWei) {
+      console.error(`✗ Still insufficient after faucet. Need ${amountCusd} cUSD, have ${formatUnits(newBal, 18)}`);
+      process.exit(1);
+    }
   }
 
   // 1. Approve
