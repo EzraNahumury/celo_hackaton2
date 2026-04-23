@@ -1,110 +1,169 @@
+import { encodePacked, keccak256, parseUnits, toBytes } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { supabase } from "../config/supabase";
-import { normalizeAddress } from "../utils/helpers";
-import { logger } from "../utils/logger";
-import { buildPuzzleTree, buildProofFromWinners, Winner } from "./merkleService";
 import { walletClient, publicClient } from "../config/blockchain";
 import { env } from "../config/env";
-import PuzzlePoolABI from "../contracts/PuzzlePool.json";
+import { normalizeAddress } from "../utils/helpers";
+import { logger } from "../utils/logger";
+import { fetchLichessPuzzle, getRandomFallbackPuzzle } from "./lichessService";
+import ERC20_ABI from "../contracts/erc20.json";
 
-// Top-N correct solvers who win a share of the prize pool
-const MAX_WINNERS = 10;
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-export async function getDailyPuzzle() {
-  const today = new Date().toISOString().split("T")[0];
+export const PRIZE_AMOUNT_CUSD = 0.01;
+export const MAX_DAILY_PRIZES = 3;
 
-  const { data } = await supabase
-    .from("puzzles")
-    .select("id, fen, to_move, prize_pool, participants, puzzle_date, expires_at, created_at")
-    .eq("puzzle_date", today)
-    .single();
+// cUSD uses 18 decimals (same as ETH)
+const PRIZE_WEI = parseUnits(String(PRIZE_AMOUNT_CUSD), 18);
 
-  return data;
+// ── Oracle signer ─────────────────────────────────────────────────────────────
+
+/**
+ * Lazy-load oracle account for signing claim vouchers.
+ * Uses ORACLE_PRIVATE_KEY if set, falls back to SERVER_WALLET_PRIVATE_KEY.
+ */
+function getOracleAccount() {
+  const pk = env.ORACLE_PRIVATE_KEY ?? env.SERVER_WALLET_PRIVATE_KEY;
+  if (!pk) return null;
+  try {
+    return privateKeyToAccount(pk);
+  } catch {
+    return null;
+  }
 }
 
-export async function submitPuzzleAttempt(
-  puzzleId: string,
-  playerAddress: string,
-  moves: string[],
-  timeMs: number,
-  usedHint: boolean = false
-): Promise<{
-  correct: boolean;
-  rank: number | null;
-  totalParticipants: number;
-  reward: number;
-}> {
+/**
+ * Compute the unique nonce for a player+puzzle combination.
+ * Matches the backend computation expected by DailyPuzzlePool.claim().
+ * nonce = keccak256(keccak256(puzzleId), playerAddress)
+ */
+function claimNonce(puzzleId: string, playerAddress: `0x${string}`): `0x${string}` {
+  return keccak256(encodePacked(
+    ["bytes32", "address"],
+    [keccak256(toBytes(puzzleId)), playerAddress]
+  ));
+}
+
+/**
+ * Sign a claim voucher for DailyPuzzlePool.claim().
+ * Message: keccak256(abi.encodePacked(player, day, nonce, amount))
+ */
+async function signClaimVoucher(
+  playerAddress: `0x${string}`,
+  dayIndex: bigint,
+  nonce: `0x${string}`,
+  amountWei: bigint
+): Promise<`0x${string}` | null> {
+  const oracle = getOracleAccount();
+  if (!oracle) return null;
+
+  const msgHash = keccak256(encodePacked(
+    ["address", "uint256", "bytes32", "uint256"],
+    [playerAddress, dayIndex, nonce, amountWei]
+  ));
+
+  // signMessage adds "\x19Ethereum Signed Message:\n32" prefix — matches toEthSignedMessageHash
+  return oracle.signMessage({ message: { raw: toBytes(msgHash) } });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function todayUtcStart(): string {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+// ── Public service functions ──────────────────────────────────────────────────
+
+/**
+ * Get the next unseen Lichess puzzle for a player.
+ *
+ * Priority:
+ *  1. Cached lichess_puzzles the player hasn't solved today
+ *  2. Fresh fetch from Lichess API (cached for reuse)
+ *  3. Local fallback hardcoded puzzles
+ */
+export async function getNextPuzzle(playerAddress: string) {
   const address = normalizeAddress(playerAddress);
 
-  // Get puzzle with solution
-  const { data: puzzle } = await supabase
-    .from("puzzles")
-    .select("*")
-    .eq("id", puzzleId)
-    .single();
-
-  if (!puzzle) throw new Error("PUZZLE_NOT_FOUND");
-
-  if (new Date(puzzle.expires_at) < new Date()) {
-    throw new Error("PUZZLE_EXPIRED");
-  }
-
-  // Check if already submitted
-  const { data: existing } = await supabase
-    .from("puzzle_attempts")
-    .select("id")
-    .eq("puzzle_id", puzzleId)
+  // Puzzle IDs already attempted by this player today
+  const { data: seenRows } = await supabase
+    .from("puzzle_sessions")
+    .select("puzzle_id")
     .eq("player_address", address)
-    .single();
+    .gte("created_at", todayUtcStart());
 
-  if (existing) throw new Error("PUZZLE_ALREADY_SUBMITTED");
+  const seenIds: string[] = (seenRows ?? []).map((r: any) => r.puzzle_id);
 
-  // Validate player moves against solution.
-  // Solution format: [playerMove0, opponentMove0, playerMove1, opponentMove1, ...]
-  // Player moves are at even indices (0, 2, 4...).
-  const solution = puzzle.solution as string[];
-  const solutionPlayerMoves = solution.filter((_, i) => i % 2 === 0);
-  const correct = JSON.stringify(moves) === JSON.stringify(solutionPlayerMoves);
+  // Try a cached puzzle not yet seen by this player
+  let cachedQuery = supabase
+    .from("lichess_puzzles")
+    .select("id, fen, to_move, rating")
+    .order("fetched_at", { ascending: false })
+    .limit(1);
 
-  // Rank only awarded when correct AND no hint was used
-  let rank: number | null = null;
-  if (correct && !usedHint) {
-    const { count } = await supabase
-      .from("puzzle_attempts")
-      .select("*", { count: "exact", head: true })
-      .eq("puzzle_id", puzzleId)
-      .eq("correct", true);
-    rank = (count || 0) + 1;
+  if (seenIds.length > 0) {
+    cachedQuery = cachedQuery.not(
+      "id",
+      "in",
+      `(${seenIds.join(",")})`
+    );
   }
 
-  // Insert attempt
-  await supabase.from("puzzle_attempts").insert({
-    puzzle_id: puzzleId,
-    player_address: address,
-    submitted_moves: moves,
-    correct,
-    solve_time_ms: timeMs,
-    rank,
-    reward: 0,
+  const { data: cached } = await cachedQuery.single();
+
+  if (cached) {
+    return {
+      id: cached.id as string,
+      fen: cached.fen as string,
+      to_move: cached.to_move as "white" | "black",
+      rating: cached.rating as number,
+    };
+  }
+
+  // Nothing cached — try Lichess API
+  const lichess = await fetchLichessPuzzle();
+
+  if (lichess) {
+    await supabase.from("lichess_puzzles").upsert({
+      id: lichess.id,
+      fen: lichess.fen,
+      to_move: lichess.to_move,
+      solution: lichess.solution,
+      rating: lichess.rating,
+      themes: lichess.themes,
+    });
+    logger.info("Fetched & cached Lichess puzzle", { id: lichess.id });
+    return {
+      id: lichess.id,
+      fen: lichess.fen,
+      to_move: lichess.to_move,
+      rating: lichess.rating,
+    };
+  }
+
+  // Fallback: local hardcoded puzzle
+  const fallback = getRandomFallbackPuzzle(seenIds);
+  await supabase.from("lichess_puzzles").upsert({
+    id: fallback.id,
+    fen: fallback.fen,
+    to_move: fallback.to_move,
+    solution: fallback.solution,
+    rating: fallback.rating,
+    themes: fallback.themes ?? [],
   });
-
-  // Update participants count
-  await supabase
-    .from("puzzles")
-    .update({ participants: puzzle.participants + 1 })
-    .eq("id", puzzleId);
-
   return {
-    correct,
-    rank,
-    totalParticipants: puzzle.participants + 1,
-    reward: 0,
+    id: fallback.id,
+    fen: fallback.fen,
+    to_move: fallback.to_move,
+    rating: fallback.rating,
   };
 }
 
 /**
- * Validate a single player move against the puzzle solution.
- * moveIndex is the position in the solution array for the player's turn (0, 2, 4...).
- * Returns the opponent's response move if there is one, and whether the puzzle is now complete.
+ * Validate a single player move against the puzzle solution (step-by-step).
+ * moveIndex is the position in the full solution array for the player's turn (0, 2, 4...).
  */
 export async function validatePuzzleMove(
   puzzleId: string,
@@ -112,7 +171,7 @@ export async function validatePuzzleMove(
   move: string
 ): Promise<{ correct: boolean; opponentMove?: string; puzzleComplete: boolean }> {
   const { data: puzzle } = await supabase
-    .from("puzzles")
+    .from("lichess_puzzles")
     .select("solution")
     .eq("id", puzzleId)
     .single();
@@ -136,15 +195,15 @@ export async function validatePuzzleMove(
 }
 
 /**
- * Return the correct move for a given step so the frontend can show it as a hint.
- * Calling this endpoint disqualifies the player from the prize (handled on submit).
+ * Return the correct move for a step so the frontend can highlight it as a hint.
+ * Using a hint disqualifies the player from the prize (enforced on submit).
  */
 export async function getPuzzleHint(
   puzzleId: string,
   moveIndex: number
 ): Promise<{ move: string }> {
   const { data: puzzle } = await supabase
-    .from("puzzles")
+    .from("lichess_puzzles")
     .select("solution")
     .eq("id", puzzleId)
     .single();
@@ -158,213 +217,175 @@ export async function getPuzzleHint(
   return { move };
 }
 
-export async function generateDailyPuzzle(): Promise<void> {
-  const today = new Date().toISOString().split("T")[0];
-  const puzzleId = `puzzle-${today}`;
-
-  // Check if already exists
-  const { data: existing } = await supabase
-    .from("puzzles")
-    .select("id")
-    .eq("id", puzzleId)
-    .single();
-
-  if (existing) return;
-
-  // Sample puzzles - in production, fetch from lichess API.
-  // Solution format: [playerMove, opponentResponse, playerMove, opponentResponse, ...]
-  // Player moves are at even indices (0, 2, 4...), opponent at odd indices (1, 3, 5...).
-  const puzzles = [
-    {
-      // Scholar's Mate: Qxf7# (1 player move — immediate checkmate)
-      fen: "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
-      to_move: "white",
-      solution: ["h5f7"],
-    },
-    {
-      // Ne5 fork then Bxf7+ (2 player moves, 1 opponent response)
-      // 1. Nxe5 (captures pawn, knight fork)
-      // 2. Nc6xe5 (opponent recaptures — forced)
-      // 3. Bxf7+ (bishop captures f7, checks king)
-      fen: "r1b1k2r/ppppqppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 4 5",
-      to_move: "white",
-      solution: ["f3e5", "c6e5", "c4f7"],
-    },
-    {
-      // Fool's Mate: Qh4# (1 player move — immediate checkmate)
-      fen: "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2",
-      to_move: "black",
-      solution: ["d8h4"],
-    },
-  ];
-
-  const puzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
-  const expiresAt = new Date();
-  expiresAt.setUTCHours(23, 59, 59, 999);
-
-  await supabase.from("puzzles").insert({
-    id: puzzleId,
-    fen: puzzle.fen,
-    to_move: puzzle.to_move,
-    solution: puzzle.solution,
-    prize_pool: 5.0,
-    participants: 0,
-    puzzle_date: today,
-    expires_at: expiresAt.toISOString(),
-  });
-
-  logger.info("Daily puzzle generated", { puzzleId });
-}
-
 /**
- * Finalize a puzzle round:
- *  1. Fetch top-MAX_WINNERS correct solvers sorted by solve_time_ms (fastest first)
- *  2. Compute equal share of prize_pool for each winner (in wei)
- *  3. Build Merkle tree and submit root to PuzzlePool.finalizeRound on-chain
- *  4. Persist merkle_root + individual reward amounts back to DB
- *
- * Idempotent: if merkle_root is already set on the puzzle row, skips on-chain submit.
+ * Get today's prize status for a player.
  */
-export async function finalizePuzzleRound(
-  puzzleDate: string
-): Promise<{ winners: number; merkleRoot: string | null }> {
-  const puzzleId = `puzzle-${puzzleDate}`;
-
-  const { data: puzzle } = await supabase
-    .from("puzzles")
-    .select("id, prize_pool, merkle_root")
-    .eq("id", puzzleId)
-    .single();
-
-  if (!puzzle) {
-    logger.warn("finalizePuzzleRound: puzzle not found", { puzzleId });
-    return { winners: 0, merkleRoot: null };
-  }
-
-  // Already finalized — return existing root without re-submitting
-  if ((puzzle as any).merkle_root) {
-    logger.info("finalizePuzzleRound: already finalized", {
-      puzzleId,
-      merkleRoot: (puzzle as any).merkle_root,
-    });
-    return { winners: 0, merkleRoot: (puzzle as any).merkle_root };
-  }
-
-  // Fetch top-N correct attempts sorted fastest first
-  const { data: attempts } = await supabase
-    .from("puzzle_attempts")
-    .select("player_address, solve_time_ms")
-    .eq("puzzle_id", puzzleId)
-    .eq("correct", true)
-    .order("solve_time_ms", { ascending: true })
-    .limit(MAX_WINNERS);
-
-  if (!attempts || attempts.length === 0) {
-    logger.info("finalizePuzzleRound: no correct solvers", { puzzleId });
-    return { winners: 0, merkleRoot: null };
-  }
-
-  // Equal share (in wei); prize_pool is in CELO with up to 2 decimal places
-  const prizePool = Number(puzzle.prize_pool);
-  const shareWei = BigInt(
-    Math.floor((prizePool / attempts.length) * 1e18)
-  );
-
-  const winners: Winner[] = attempts.map((a) => ({
-    address: a.player_address,
-    amountWei: shareWei,
-  }));
-
-  const tree = buildPuzzleTree(winners);
-  const merkleRoot = tree.root as `0x${string}`;
-
-  // Submit on-chain
-  let txHash: string | null = null;
-  if (walletClient && env.PUZZLE_POOL_ADDRESS) {
-    try {
-      txHash = await walletClient.writeContract({
-        address: env.PUZZLE_POOL_ADDRESS,
-        abi: PuzzlePoolABI,
-        functionName: "finalizeRound",
-        args: [merkleRoot],
-      });
-      await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
-      logger.info("PuzzlePool.finalizeRound submitted", {
-        puzzleDate,
-        merkleRoot,
-        winners: winners.length,
-        txHash,
-      });
-    } catch (err) {
-      logger.error("PuzzlePool.finalizeRound on-chain failed", {
-        error: (err as Error).message,
-        puzzleDate,
-      });
-      // Continue — persist root to DB anyway so proofs still work off-chain
-    }
-  } else {
-    logger.warn("PUZZLE_POOL_ADDRESS not configured — skipping on-chain finalizeRound");
-  }
-
-  // Persist merkle_root to puzzles row
-  await supabase
-    .from("puzzles")
-    .update({ merkle_root: merkleRoot })
-    .eq("id", puzzleId);
-
-  // Persist individual reward amounts to puzzle_attempts
-  const shareDisplay = prizePool / attempts.length;
-  for (const winner of winners) {
-    await supabase
-      .from("puzzle_attempts")
-      .update({ reward: shareDisplay })
-      .eq("puzzle_id", puzzleId)
-      .eq("player_address", winner.address);
-  }
-
-  logger.info("finalizePuzzleRound complete", {
-    puzzleId,
-    winners: winners.length,
-    merkleRoot,
-    txHash,
-  });
-
-  return { winners: winners.length, merkleRoot };
-}
-
-/**
- * Get the Merkle proof for a specific address for a given puzzle day.
- * Returns null if the round hasn't been finalized or the address didn't win.
- */
-export async function getPuzzleProof(
-  puzzleDate: string,
-  playerAddress: string
-): Promise<{ amount: string; proof: string[] } | null> {
-  const puzzleId = `puzzle-${puzzleDate}`;
+export async function getDailyPrizeStatus(playerAddress: string) {
   const address = normalizeAddress(playerAddress);
 
-  // Fetch all winning attempts for this puzzle (correct=true, reward>0)
-  const { data: attempts } = await supabase
-    .from("puzzle_attempts")
-    .select("player_address, reward")
-    .eq("puzzle_id", puzzleId)
-    .eq("correct", true)
-    .gt("reward", 0)
-    .order("solve_time_ms", { ascending: true })
-    .limit(MAX_WINNERS);
+  const { count: earned } = await supabase
+    .from("puzzle_sessions")
+    .select("*", { count: "exact", head: true })
+    .eq("player_address", address)
+    .eq("prize_paid", true)
+    .gte("created_at", todayUtcStart());
 
-  if (!attempts || attempts.length === 0) return null;
+  const { count: played } = await supabase
+    .from("puzzle_sessions")
+    .select("*", { count: "exact", head: true })
+    .eq("player_address", address)
+    .gte("created_at", todayUtcStart());
 
-  const winners: Winner[] = attempts.map((a) => ({
-    address: a.player_address,
-    amountWei: BigInt(Math.round(Number(a.reward) * 1e18)),
-  }));
-
-  const result = buildProofFromWinners(winners, address);
-  if (!result) return null;
+  const prizesEarned = earned ?? 0;
 
   return {
-    amount: result.amountWei.toString(),
-    proof: result.proof,
+    prizesEarned,
+    prizesRemaining: Math.max(0, MAX_DAILY_PRIZES - prizesEarned),
+    totalPlayedToday: played ?? 0,
+    maxDailyPrizes: MAX_DAILY_PRIZES,
+    prizeAmountCusd: PRIZE_AMOUNT_CUSD,
+  };
+}
+
+/**
+ * Submit completed puzzle moves.
+ * - Validates player moves against the solution.
+ * - Pays 0.01 cUSD if correct, not a hint, and under the 3-prize daily limit.
+ * - Records the session regardless of outcome.
+ */
+export async function submitPuzzle(
+  puzzleId: string,
+  playerAddress: string,
+  playerMoves: string[],
+  timeMs: number,
+  usedHint: boolean
+): Promise<{
+  correct: boolean;
+  prizeEarned: boolean;
+  prizeAmountCusd: number;
+  txHash: string | null;
+  prizesEarned: number;
+  prizesRemaining: number;
+  /** Present when DailyPuzzlePool is configured — FE calls claim() with these params. */
+  claimData: {
+    contractAddress: `0x${string}`;
+    day: string;
+    nonce: `0x${string}`;
+    amountWei: string;
+    signature: `0x${string}`;
+  } | null;
+}> {
+  const address = normalizeAddress(playerAddress);
+
+  // Fetch puzzle solution
+  const { data: puzzle } = await supabase
+    .from("lichess_puzzles")
+    .select("solution")
+    .eq("id", puzzleId)
+    .single();
+
+  if (!puzzle) throw new Error("PUZZLE_NOT_FOUND");
+
+  // Validate: player moves must match even-indexed solution entries
+  const solution = puzzle.solution as string[];
+  const solutionPlayerMoves = solution.filter((_, i) => i % 2 === 0);
+  const correct = JSON.stringify(playerMoves) === JSON.stringify(solutionPlayerMoves);
+
+  // Count today's paid prizes BEFORE this attempt
+  const { count: prizesBefore } = await supabase
+    .from("puzzle_sessions")
+    .select("*", { count: "exact", head: true })
+    .eq("player_address", address)
+    .eq("prize_paid", true)
+    .gte("created_at", todayUtcStart());
+
+  const prizeEligible =
+    correct && !usedHint && (prizesBefore ?? 0) < MAX_DAILY_PRIZES;
+
+  // Prize payout
+  let txHash: string | null = null;
+  let prizePaid = false;
+  let claimData: {
+    contractAddress: `0x${string}`;
+    day: string;
+    nonce: `0x${string}`;
+    amountWei: string;
+    signature: `0x${string}`;
+  } | null = null;
+
+  if (prizeEligible) {
+    if (env.DAILY_PUZZLE_POOL_ADDRESS) {
+      // ── DailyPuzzlePool flow: oracle signs voucher, FE calls claim() ──────────
+      try {
+        const dayIndex = BigInt(Math.floor(Date.now() / 1000 / 86400));
+        const nonce = claimNonce(puzzleId, address as `0x${string}`);
+        const signature = await signClaimVoucher(address as `0x${string}`, dayIndex, nonce, PRIZE_WEI);
+
+        if (signature) {
+          prizePaid = true;
+          claimData = {
+            contractAddress: env.DAILY_PUZZLE_POOL_ADDRESS,
+            day: dayIndex.toString(),
+            nonce,
+            amountWei: PRIZE_WEI.toString(),
+            signature,
+          };
+          logger.info("Claim voucher signed", { player: address, puzzleId, day: dayIndex.toString() });
+        } else {
+          logger.warn("Oracle key not configured — prize skipped", { address, puzzleId });
+        }
+      } catch (err) {
+        logger.error("Claim voucher signing failed", {
+          error: (err as Error).message, address, puzzleId,
+        });
+      }
+    } else if (walletClient && env.CUSD_ADDRESS) {
+      // ── Fallback: direct ERC-20 transfer from server wallet ──────────────────
+      try {
+        txHash = await walletClient.writeContract({
+          address: env.CUSD_ADDRESS,
+          abi: ERC20_ABI,
+          functionName: "transfer",
+          args: [address as `0x${string}`, PRIZE_WEI],
+        });
+        await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
+        prizePaid = true;
+        logger.info("cUSD prize paid (direct transfer)", {
+          to: address, puzzleId, amount: PRIZE_AMOUNT_CUSD, txHash,
+        });
+      } catch (err) {
+        logger.error("cUSD prize transfer failed", {
+          error: (err as Error).message, address, puzzleId,
+        });
+      }
+    } else {
+      logger.warn("Prize skipped: DAILY_PUZZLE_POOL_ADDRESS and CUSD_ADDRESS not configured", {
+        address, puzzleId,
+      });
+    }
+  }
+
+  // Record session
+  await supabase.from("puzzle_sessions").insert({
+    puzzle_id: puzzleId,
+    player_address: address,
+    submitted_moves: playerMoves,
+    correct,
+    used_hint: usedHint,
+    prize_paid: prizePaid,
+    tx_hash: txHash,
+    solve_time_ms: timeMs,
+  });
+
+  const prizesEarned = (prizesBefore ?? 0) + (prizePaid ? 1 : 0);
+
+  return {
+    correct,
+    prizeEarned: prizePaid,
+    prizeAmountCusd: prizePaid ? PRIZE_AMOUNT_CUSD : 0,
+    txHash,
+    prizesEarned,
+    prizesRemaining: Math.max(0, MAX_DAILY_PRIZES - prizesEarned),
+    claimData,
   };
 }

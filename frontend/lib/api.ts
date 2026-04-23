@@ -3,7 +3,6 @@ import type {
   AuthVerifyResponse,
   CreateGameRequest,
   CreateGameResponse,
-  DailyPuzzle,
   GameState,
   GameStatus,
   JoinGameResponse,
@@ -11,13 +10,14 @@ import type {
   LeaderboardResponse,
   LobbyEntry,
   MoveResult,
+  NextPuzzle,
   OnlineCountResponse,
   PlayerGamesResponse,
   PlayerProfile,
   PlayerTransactionsResponse,
   PuzzleHintResponse,
   PuzzleMoveResponse,
-  PuzzleProofResponse,
+  PuzzleStatus,
   ResignResponse,
   StakeAmount,
   SubmitPuzzleResponse,
@@ -140,43 +140,34 @@ export const api = {
   },
 
   // ---- Puzzle ----
-  getDailyPuzzle() {
-    return request<DailyPuzzle>("/puzzle/daily");
+  // Get the next unseen Lichess puzzle for the authenticated player.
+  getNextPuzzle() {
+    return request<NextPuzzle>("/puzzle/next", { auth: true });
   },
-  // Validate a single player move step-by-step (no auth required).
-  // moveIndex is the index in the full solution array for the player's current turn (0, 2, 4...).
+  // Get today's prize status (how many prizes earned, remaining).
+  getPuzzleStatus() {
+    return request<PuzzleStatus>("/puzzle/status", { auth: true });
+  },
+  // Validate a single player move step-by-step (no auth, no side-effects).
   validatePuzzleMove(puzzleId: string, moveIndex: number, move: string) {
-    return request<PuzzleMoveResponse>("/puzzle/daily/move", {
+    return request<PuzzleMoveResponse>("/puzzle/move", {
       method: "POST",
       body: JSON.stringify({ puzzleId, moveIndex, move }),
     });
   },
   // Fetch the correct move for the current step to show as a hint.
-  // Using a hint disqualifies the player from the prize.
   getPuzzleHint(puzzleId: string, step: number) {
     return request<PuzzleHintResponse>(
-      `/puzzle/daily/hint?puzzleId=${encodeURIComponent(puzzleId)}&step=${step}`,
+      `/puzzle/hint?puzzleId=${encodeURIComponent(puzzleId)}&step=${step}`,
     );
   },
+  // Submit completed puzzle. Pays 0.01 cUSD if correct + under daily limit + no hint.
   submitPuzzle(puzzleId: string, moves: string[], timeMs: number, usedHint = false) {
-    return request<SubmitPuzzleResponse>("/puzzle/daily/submit", {
+    return request<SubmitPuzzleResponse>("/puzzle/submit", {
       method: "POST",
       auth: true,
       body: JSON.stringify({ puzzleId, moves, timeMs, usedHint }),
     });
-  },
-  // Get Merkle proof for today's puzzle prize claim. Returns 404 if round
-  // not finalized yet or the caller isn't a winner.
-  getPuzzleProofToday(address: WalletAddress) {
-    return request<PuzzleProofResponse>(
-      `/puzzle/daily/proof?addr=${encodeURIComponent(address)}`,
-    );
-  },
-  // Get proof for a specific day (YYYY-MM-DD) — useful for past rounds.
-  getPuzzleProof(day: string, address: WalletAddress) {
-    return request<PuzzleProofResponse>(
-      `/puzzle/${encodeURIComponent(day)}/proof?address=${encodeURIComponent(address)}`,
-    );
   },
 
   // ---- Leaderboard ----
