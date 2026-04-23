@@ -7,9 +7,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /// @notice Mock cUSD for Celo Sepolia testing. Anyone can mint via faucet().
 contract MockCUSD is ERC20, Ownable {
     uint256 public constant FAUCET_AMOUNT = 100 * 1e18; // 100 cUSD per request
-    uint256 public constant FAUCET_COOLDOWN = 24 hours;
-
-    mapping(address => uint256) public lastFaucet;
 
     event FaucetUsed(address indexed user, uint256 amount);
 
@@ -18,13 +15,8 @@ contract MockCUSD is ERC20, Ownable {
         _mint(msg.sender, 1_000_000 * 1e18);
     }
 
-    /// @notice Anyone can call once per 24h to receive 100 cUSD
+    /// @notice Anyone can call freely to receive 100 cUSD (no cooldown, testing only)
     function faucet() external {
-        require(
-            block.timestamp >= lastFaucet[msg.sender] + FAUCET_COOLDOWN,
-            "faucet: wait 24h"
-        );
-        lastFaucet[msg.sender] = block.timestamp;
         _mint(msg.sender, FAUCET_AMOUNT);
         emit FaucetUsed(msg.sender, FAUCET_AMOUNT);
     }

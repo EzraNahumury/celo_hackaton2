@@ -26,7 +26,8 @@ export default function HomePage() {
     address,
     query: { enabled: !!address },
   });
-  const { data: stakeBal } = useStakeTokenBalance(address);
+  const isPolling = faucetHash !== undefined && faucetStatus !== "success" && faucetStatus !== "error";
+  const { data: stakeBal } = useStakeTokenBalance(address, isPolling ? 2000 : false);
   const { entry: stats } = usePlayerStats(address);
   const stakeAmount = stakeBal !== undefined ? Number(formatUnits(stakeBal, 18)) : null;
 

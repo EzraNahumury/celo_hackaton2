@@ -68,13 +68,19 @@ export function useStakeTokenFaucet() {
   return { requestFaucet, isPending, error, hash: data };
 }
 
-export function useStakeTokenBalance(address: WalletAddress | undefined) {
+export function useStakeTokenBalance(
+  address: WalletAddress | undefined,
+  refetchInterval?: number | false,
+) {
   return useReadContract({
     chainId: ACTIVE_CHAIN.id,
     address: STAKE_TOKEN.address,
     abi: erc20Abi,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    query: { enabled: !!address && STAKE_TOKEN_CONFIGURED },
+    query: {
+      enabled: !!address && STAKE_TOKEN_CONFIGURED,
+      refetchInterval: refetchInterval ?? false,
+    },
   });
 }
