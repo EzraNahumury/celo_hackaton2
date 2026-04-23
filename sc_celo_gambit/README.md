@@ -12,7 +12,8 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 | `PuzzlePool` | Daily prize pool, sponsor deposit, Merkle claim |
 | `ClubVault` | Weekly club 4-8 members, 70/20/10 split, carryover |
 | `GambitBadges` | Soulbound ERC-5192: FIRST_WIN / PUZZLE_STREAK_7 / CLUB_CHAMPION / RATING_1400 / FAIR_PLAY_HOLD |
-| `MockCUSD` *(testnet only)* | Mintable ERC20 mock stablecoin — public faucet 100 cUSD/24h |
+| `MockCUSD` *(testnet only)* | Mintable ERC20 mock stablecoin — public faucet 100 cUSD, no cooldown |
+| `DailyPuzzlePool` | Immediate cUSD prize claim via oracle-signed voucher, max 3 claims/day |
 
 ## Deployed — Celo Sepolia Testnet (Chain 11142220)
 
@@ -28,11 +29,12 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 
 > All 5 game contracts are **verified** on Celoscan.
 
-### Mock Token (Testnet Only)
+### Mock Token & Daily Puzzle Pool (Testnet Only)
 
 | Contract | Address | Note |
 |---|---|---|
-| MockCUSD | `0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F` | [view](https://sepolia.celoscan.io/address/0x1738d9cd003e1e1e8f648dbae9e85ed116810c2f) — Public faucet, 100 cUSD/24h |
+| MockCUSD | `0x0b8c930d8A8823cD80FCdA84f9E7C64184bdC700` | [view](https://sepolia.celoscan.io/address/0x0b8c930d8a8823cd80fcda84f9e7c64184bdc700) — Public faucet, 100 cUSD, **no cooldown** |
+| DailyPuzzlePool | `0xA60a7C4FAb8dEE21a3ec5BA39355Ff915da68C29` | [view](https://sepolia.celoscan.io/address/0xa60a7c4fab8dee21a3ec5ba39355ff915da68c29) — Oracle-signed voucher claim, max 3 claims/day, funded with MockCUSD |
 
 ## Roles & Addresses
 
@@ -75,6 +77,7 @@ ORACLE_ADDRESS=0x...       # Oracle signer address
 TREASURY_ADDRESS=0x...     # Platform fee recipient address
 BADGE_BASE_URI=https://gambit.app/badges/
 CELOSCAN_API_KEY=...       # Get from https://celoscan.io/myapikey
+CUSD_ADDRESS=0x0b8c930d8A8823cD80FCdA84f9E7C64184bdC700  # MockCUSD (Celo Sepolia)
 ```
 
 ## Build & Test
@@ -99,26 +102,52 @@ forge script script/Deploy.s.sol \
 ### Deploy MockCUSD (testnet only)
 
 ```bash
-forge script script/DeployMockCUSD.s.sol \
-  --rpc-url celo_sepolia \
-  --broadcast \
-  --verify \
-  -vvvv
+forge script script/DeployMockCUSD.s.sol --rpc-url celo_sepolia --broadcast --verify -vvvv
+```
+
+### Deploy DailyPuzzlePool (testnet only)
+
+Pastikan `CUSD_ADDRESS` sudah diisi di `.env`, lalu:
+
+```bash
+forge script script/DeployDailyPuzzlePool.s.sol --rpc-url celo_sepolia --broadcast --verify -vvvv
 ```
 
 ## MockCUSD — Faucet
 
-Setelah deploy, siapa saja bisa claim 100 cUSD per 24 jam:
+Siapa saja bisa claim 100 cUSD **tanpa cooldown** (bebas berulang kali untuk testing):
 
 ```bash
-# Claim via cast
-cast send 0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F "faucet()" \
+# Claim via cast (bisa dipanggil berkali-kali)
+cast send 0x0b8c930d8A8823cD80FCdA84f9E7C64184bdC700 "faucet()" \
   --rpc-url https://rpc.ankr.com/celo_sepolia \
   --private-key $PRIVATE_KEY
 
-# Mint manual (owner only)
-cast send 0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F \
+# Mint manual (owner only, untuk seed DailyPuzzlePool)
+cast send 0x0b8c930d8A8823cD80FCdA84f9E7C64184bdC700 \
   "mint(address,uint256)" <WALLET> <AMOUNT_WEI> \
+  --rpc-url https://rpc.ankr.com/celo_sepolia \
+  --private-key $PRIVATE_KEY
+```
+
+## DailyPuzzlePool — Flow
+
+1. Backend memvalidasi jawaban puzzle
+2. Backend (oracle) sign voucher: `keccak256(player, day, nonce, amount)`
+3. Frontend panggil `claim(day, nonce, amount, signature)`
+4. Contract verifikasi signature oracle, cek limit 3 kali/hari, transfer cUSD
+
+**Seed pool (owner):**
+```bash
+# Approve MockCUSD dulu
+cast send 0x0b8c930d8A8823cD80FCdA84f9E7C64184bdC700 \
+  "approve(address,uint256)" 0xA60a7C4FAb8dEE21a3ec5BA39355Ff915da68C29 1000000000000000000000 \
+  --rpc-url https://rpc.ankr.com/celo_sepolia \
+  --private-key $PRIVATE_KEY
+
+# Fund pool
+cast send 0xA60a7C4FAb8dEE21a3ec5BA39355Ff915da68C29 \
+  "fund(uint256)" 1000000000000000000000 \
   --rpc-url https://rpc.ankr.com/celo_sepolia \
   --private-key $PRIVATE_KEY
 ```
@@ -145,7 +174,8 @@ cast call 0xA68141b7b36d1161757e1790BcB5199d4EfFF281 \
 - [x] 87/87 unit tests passing
 - [x] Deploy ke Celo Sepolia
 - [x] Semua contracts verified di Celoscan
-- [x] MockCUSD dengan public faucet (testnet)
-- [x] Deploy MockCUSD ke Celo Sepolia
+- [x] MockCUSD dengan public faucet tanpa cooldown (testnet)
+- [x] Deploy MockCUSD ke Celo Sepolia: `0x0b8c930d8A8823cD80FCdA84f9E7C64184bdC700`
+- [x] DailyPuzzlePool contract selesai & deployed: `0xA60a7C4FAb8dEE21a3ec5BA39355Ff915da68C29`
 - [ ] Frontend MiniApp (Next.js + MiniPay hook)
 - [ ] Daftar di talent.app (Proof of Ship)
