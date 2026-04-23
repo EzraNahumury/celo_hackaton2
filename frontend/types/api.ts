@@ -153,34 +153,53 @@ export type ResignResponse = {
 };
 
 // ---- Puzzle ----
-export type DailyPuzzle = {
+
+// Response from GET /puzzle/next
+export type NextPuzzle = {
   id: string;
   fen: FEN;
   to_move: "white" | "black";
-  prize_pool: number;
-  participants: number;
-  puzzle_date: string;
-  expires_at: Timestamp;
-  created_at: Timestamp;
+  rating: number;
 };
 
+// Response from GET /puzzle/status
+export type PuzzleStatus = {
+  prizesEarned: number;
+  prizesRemaining: number;
+  totalPlayedToday: number;
+  maxDailyPrizes: number;
+  prizeAmountCusd: number;
+};
+
+// Response from POST /puzzle/submit
 export type SubmitPuzzleResponse = {
   correct: boolean;
-  rank: number | null;
-  totalParticipants: number;
-  reward: number;
+  prizeEarned: boolean;
+  prizeAmountCusd: number;
+  txHash: string | null;
+  prizesEarned: number;
+  prizesRemaining: number;
+  /**
+   * Present when DailyPuzzlePool is configured.
+   * FE must call DailyPuzzlePool.claim() with these params to receive the prize.
+   */
+  claimData: {
+    contractAddress: `0x${string}`;
+    day: string;
+    nonce: `0x${string}`;
+    amountWei: string;
+    signature: `0x${string}`;
+  } | null;
 };
 
-// Response from POST /puzzle/daily/move (step-by-step validation)
+// Response from POST /puzzle/move (step-by-step validation)
 export type PuzzleMoveResponse = {
   correct: boolean;
-  // UCI move for the opponent's forced response (present when correct and puzzle not yet complete)
-  opponentMove?: string;
-  // true when the player has completed all required moves
+  opponentMove?: string; // UCI — present when correct and puzzle not yet complete
   puzzleComplete: boolean;
 };
 
-// Response from GET /puzzle/daily/hint
+// Response from GET /puzzle/hint
 export type PuzzleHintResponse = {
   move: string; // UCI notation of the correct move for the current step
 };

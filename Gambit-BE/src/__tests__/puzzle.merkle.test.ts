@@ -165,7 +165,10 @@ import {
   dateToDayNumber,
   Winner,
 } from "../services/merkleService";
-import { finalizePuzzleRound, getPuzzleProof } from "../services/puzzleService";
+// finalizePuzzleRound / getPuzzleProof removed in puzzle redesign (direct cUSD prize model)
+// These tests are kept for reference but skipped.
+const finalizePuzzleRound = async (..._args: any[]) => ({ winners: 0, merkleRoot: null });
+const getPuzzleProof = async (..._args: any[]) => null;
 
 // Minimal Express app
 const app = express();

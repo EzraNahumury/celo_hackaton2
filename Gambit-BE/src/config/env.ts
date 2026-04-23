@@ -28,6 +28,9 @@ export const env = {
   PUZZLE_POOL_ADDRESS: process.env.PUZZLE_POOL_ADDRESS as
     | `0x${string}`
     | undefined,
+  DAILY_PUZZLE_POOL_ADDRESS: process.env.DAILY_PUZZLE_POOL_ADDRESS as
+    | `0x${string}`
+    | undefined,
   // Legacy alias kept for backwards-compat during migration
   CHESS_ESCROW_ADDRESS: (process.env.MATCH_ESCROW_ADDRESS ||
     process.env.CHESS_ESCROW_ADDRESS) as `0x${string}` | undefined,
