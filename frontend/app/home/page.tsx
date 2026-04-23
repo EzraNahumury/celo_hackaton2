@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatUnits } from "viem";
 import { useBalance } from "wagmi";
 import { BottomNav } from "@/components/bottom-nav";
@@ -26,15 +26,10 @@ export default function HomePage() {
     address,
     query: { enabled: !!address },
   });
-  const { data: stakeBal, refetch: refetchBalance } = useStakeTokenBalance(address);
+  const isPolling = faucetHash !== undefined && faucetStatus !== "success" && faucetStatus !== "error";
+  const { data: stakeBal } = useStakeTokenBalance(address, isPolling ? 2000 : false);
   const { entry: stats } = usePlayerStats(address);
   const stakeAmount = stakeBal !== undefined ? Number(formatUnits(stakeBal, 18)) : null;
-
-  useEffect(() => {
-    if (faucetStatus === "success") {
-      refetchBalance();
-    }
-  }, [faucetStatus, refetchBalance]);
 
   const onRequestFaucet = async () => {
     if (!isConnected) {
