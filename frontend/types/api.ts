@@ -171,6 +171,20 @@ export type SubmitPuzzleResponse = {
   reward: number;
 };
 
+// Response from POST /puzzle/daily/move (step-by-step validation)
+export type PuzzleMoveResponse = {
+  correct: boolean;
+  // UCI move for the opponent's forced response (present when correct and puzzle not yet complete)
+  opponentMove?: string;
+  // true when the player has completed all required moves
+  puzzleComplete: boolean;
+};
+
+// Response from GET /puzzle/daily/hint
+export type PuzzleHintResponse = {
+  move: string; // UCI notation of the correct move for the current step
+};
+
 // ---- Player history ----
 // Row returned by GET /player/:address/games. Shape is DB row + BE adds
 // `opponent` and `playerColor` for the caller's perspective.

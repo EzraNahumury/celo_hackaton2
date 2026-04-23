@@ -15,6 +15,8 @@ import type {
   PlayerGamesResponse,
   PlayerProfile,
   PlayerTransactionsResponse,
+  PuzzleHintResponse,
+  PuzzleMoveResponse,
   PuzzleProofResponse,
   ResignResponse,
   StakeAmount,
@@ -141,11 +143,26 @@ export const api = {
   getDailyPuzzle() {
     return request<DailyPuzzle>("/puzzle/daily");
   },
-  submitPuzzle(puzzleId: string, moves: string[], timeMs: number) {
+  // Validate a single player move step-by-step (no auth required).
+  // moveIndex is the index in the full solution array for the player's current turn (0, 2, 4...).
+  validatePuzzleMove(puzzleId: string, moveIndex: number, move: string) {
+    return request<PuzzleMoveResponse>("/puzzle/daily/move", {
+      method: "POST",
+      body: JSON.stringify({ puzzleId, moveIndex, move }),
+    });
+  },
+  // Fetch the correct move for the current step to show as a hint.
+  // Using a hint disqualifies the player from the prize.
+  getPuzzleHint(puzzleId: string, step: number) {
+    return request<PuzzleHintResponse>(
+      `/puzzle/daily/hint?puzzleId=${encodeURIComponent(puzzleId)}&step=${step}`,
+    );
+  },
+  submitPuzzle(puzzleId: string, moves: string[], timeMs: number, usedHint = false) {
     return request<SubmitPuzzleResponse>("/puzzle/daily/submit", {
       method: "POST",
       auth: true,
-      body: JSON.stringify({ puzzleId, moves, timeMs }),
+      body: JSON.stringify({ puzzleId, moves, timeMs, usedHint }),
     });
   },
   // Get Merkle proof for today's puzzle prize claim. Returns 404 if round

@@ -25,7 +25,8 @@ export async function submitPuzzleAttempt(
   puzzleId: string,
   playerAddress: string,
   moves: string[],
-  timeMs: number
+  timeMs: number,
+  usedHint: boolean = false
 ): Promise<{
   correct: boolean;
   rank: number | null;
@@ -57,14 +58,16 @@ export async function submitPuzzleAttempt(
 
   if (existing) throw new Error("PUZZLE_ALREADY_SUBMITTED");
 
-  // Validate solution
+  // Validate player moves against solution.
+  // Solution format: [playerMove0, opponentMove0, playerMove1, opponentMove1, ...]
+  // Player moves are at even indices (0, 2, 4...).
   const solution = puzzle.solution as string[];
-  const correct =
-    JSON.stringify(moves) === JSON.stringify(solution);
+  const solutionPlayerMoves = solution.filter((_, i) => i % 2 === 0);
+  const correct = JSON.stringify(moves) === JSON.stringify(solutionPlayerMoves);
 
-  // Get rank (for correct answers only)
+  // Rank only awarded when correct AND no hint was used
   let rank: number | null = null;
-  if (correct) {
+  if (correct && !usedHint) {
     const { count } = await supabase
       .from("puzzle_attempts")
       .select("*", { count: "exact", head: true })
@@ -98,6 +101,63 @@ export async function submitPuzzleAttempt(
   };
 }
 
+/**
+ * Validate a single player move against the puzzle solution.
+ * moveIndex is the position in the solution array for the player's turn (0, 2, 4...).
+ * Returns the opponent's response move if there is one, and whether the puzzle is now complete.
+ */
+export async function validatePuzzleMove(
+  puzzleId: string,
+  moveIndex: number,
+  move: string
+): Promise<{ correct: boolean; opponentMove?: string; puzzleComplete: boolean }> {
+  const { data: puzzle } = await supabase
+    .from("puzzles")
+    .select("solution")
+    .eq("id", puzzleId)
+    .single();
+
+  if (!puzzle) throw new Error("PUZZLE_NOT_FOUND");
+
+  const solution = puzzle.solution as string[];
+
+  if (move !== solution[moveIndex]) {
+    return { correct: false, puzzleComplete: false };
+  }
+
+  const opponentMove = solution[moveIndex + 1] as string | undefined;
+  const puzzleComplete = moveIndex + 2 >= solution.length;
+
+  return {
+    correct: true,
+    opponentMove: opponentMove || undefined,
+    puzzleComplete,
+  };
+}
+
+/**
+ * Return the correct move for a given step so the frontend can show it as a hint.
+ * Calling this endpoint disqualifies the player from the prize (handled on submit).
+ */
+export async function getPuzzleHint(
+  puzzleId: string,
+  moveIndex: number
+): Promise<{ move: string }> {
+  const { data: puzzle } = await supabase
+    .from("puzzles")
+    .select("solution")
+    .eq("id", puzzleId)
+    .single();
+
+  if (!puzzle) throw new Error("PUZZLE_NOT_FOUND");
+
+  const solution = puzzle.solution as string[];
+  const move = solution[moveIndex];
+  if (!move) throw new Error("INVALID_MOVE_INDEX");
+
+  return { move };
+}
+
 export async function generateDailyPuzzle(): Promise<void> {
   const today = new Date().toISOString().split("T")[0];
   const puzzleId = `puzzle-${today}`;
@@ -111,19 +171,27 @@ export async function generateDailyPuzzle(): Promise<void> {
 
   if (existing) return;
 
-  // Sample puzzles - in production, fetch from lichess API
+  // Sample puzzles - in production, fetch from lichess API.
+  // Solution format: [playerMove, opponentResponse, playerMove, opponentResponse, ...]
+  // Player moves are at even indices (0, 2, 4...), opponent at odd indices (1, 3, 5...).
   const puzzles = [
     {
+      // Scholar's Mate: Qxf7# (1 player move — immediate checkmate)
       fen: "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
       to_move: "white",
       solution: ["h5f7"],
     },
     {
+      // Ne5 fork then Bxf7+ (2 player moves, 1 opponent response)
+      // 1. Nxe5 (captures pawn, knight fork)
+      // 2. Nc6xe5 (opponent recaptures — forced)
+      // 3. Bxf7+ (bishop captures f7, checks king)
       fen: "r1b1k2r/ppppqppp/2n2n2/2b1p3/2B1P3/3P1N2/PPP2PPP/RNBQK2R w KQkq - 4 5",
       to_move: "white",
-      solution: ["f3e5"],
+      solution: ["f3e5", "c6e5", "c4f7"],
     },
     {
+      // Fool's Mate: Qh4# (1 player move — immediate checkmate)
       fen: "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR b KQkq - 0 2",
       to_move: "black",
       solution: ["d8h4"],

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { authMiddleware } from "../middleware/auth";
-import { getDailyPuzzle, submitPuzzleAttempt, getPuzzleProof } from "../services/puzzleService";
+import { getDailyPuzzle, submitPuzzleAttempt, getPuzzleProof, validatePuzzleMove, getPuzzleHint } from "../services/puzzleService";
 import { ERRORS } from "../types";
 
 const router = Router();
@@ -87,13 +87,13 @@ router.get("/daily", async (_req: Request, res: Response): Promise<void> => {
  */
 router.post("/daily/submit", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { puzzleId, moves, timeMs } = req.body;
+    const { puzzleId, moves, timeMs, usedHint } = req.body;
     if (!puzzleId || !moves) {
       res.status(400).json({ error: "puzzleId and moves required" });
       return;
     }
 
-    const result = await submitPuzzleAttempt(puzzleId, req.playerAddress!, moves, timeMs || 0);
+    const result = await submitPuzzleAttempt(puzzleId, req.playerAddress!, moves, timeMs || 0, !!usedHint);
     res.json(result);
   } catch (err) {
     const msg = (err as Error).message;
@@ -101,6 +101,58 @@ router.post("/daily/submit", authMiddleware, async (req: Request, res: Response)
       res.status(ERRORS.PUZZLE_EXPIRED.status).json(ERRORS.PUZZLE_EXPIRED);
     } else if (msg === "PUZZLE_ALREADY_SUBMITTED") {
       res.status(ERRORS.PUZZLE_ALREADY_SUBMITTED.status).json(ERRORS.PUZZLE_ALREADY_SUBMITTED);
+    } else {
+      res.status(500).json(ERRORS.SERVER_ERROR);
+    }
+  }
+});
+
+/**
+ * POST /puzzle/daily/move
+ * Validate a single player move against the puzzle solution (no auth required).
+ * Returns the opponent's response move if the move is correct, and whether the puzzle is complete.
+ * Body: { puzzleId: string, moveIndex: number, move: string (UCI) }
+ */
+router.post("/daily/move", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { puzzleId, moveIndex, move } = req.body;
+    if (!puzzleId || move === undefined || moveIndex === undefined) {
+      res.status(400).json({ error: "puzzleId, moveIndex, and move are required" });
+      return;
+    }
+    const result = await validatePuzzleMove(puzzleId, Number(moveIndex), String(move));
+    res.json(result);
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg === "PUZZLE_NOT_FOUND") {
+      res.status(404).json({ error: "Puzzle not found" });
+    } else {
+      res.status(500).json(ERRORS.SERVER_ERROR);
+    }
+  }
+});
+
+/**
+ * GET /puzzle/daily/hint?puzzleId=...&step=N
+ * Returns the correct move for the current step so the frontend can highlight it.
+ * No auth required — but using a hint disqualifies the player from the prize (handled on submit).
+ */
+router.get("/daily/hint", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const puzzleId = req.query.puzzleId as string | undefined;
+    const step = req.query.step as string | undefined;
+    if (!puzzleId || step === undefined) {
+      res.status(400).json({ error: "puzzleId and step query params are required" });
+      return;
+    }
+    const result = await getPuzzleHint(puzzleId, Number(step));
+    res.json(result);
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg === "PUZZLE_NOT_FOUND") {
+      res.status(404).json({ error: "Puzzle not found" });
+    } else if (msg === "INVALID_MOVE_INDEX") {
+      res.status(400).json({ error: "Invalid step index" });
     } else {
       res.status(500).json(ERRORS.SERVER_ERROR);
     }
