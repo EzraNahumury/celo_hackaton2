@@ -9,10 +9,11 @@ import { ChevronLeft, FlagIcon, TrophyIcon } from "@/components/icons";
 import { useToast } from "@/components/toast";
 import { useWallet } from "@/hooks/use-connect";
 import { useSession } from "@/hooks/use-session";
+import { useClaimDailyPuzzle } from "@/hooks/use-daily-puzzle-pool";
 import { api } from "@/lib/api";
 import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
 import { connectGameWs, type GameSocket } from "@/lib/ws";
-import type { GameResult, GameState, WsServerEvent } from "@/types/api";
+import type { BotWinClaimData, GameResult, GameState, WsServerEvent } from "@/types/api";
 
 type UiResult = "win" | "lose" | "draw";
 
@@ -51,31 +52,52 @@ function uiResultFromGame(result: GameResult, myColor: Color): UiResult {
   return whiteWon === (myColor === "w") ? "win" : "lose";
 }
 
+const DIFFICULTY_PRIZE: Record<number, number> = { 1: 0.01, 2: 0.05, 3: 0.10 };
+
 export function GameScreen() {
   const params = useSearchParams();
   const router = useRouter();
   const gameId = params.get("id");
   const previewStake = Number(params.get("stake") ?? "1");
   const previewTc = params.get("tc") ?? "3+0";
+  const isVsMaster = params.get("vsmaster") === "1";
+  const vsMasterDifficulty = Number(params.get("difficulty") ?? "1");
 
-  // If no id is present we fall back to the old offline bot demo (used when
-  // contracts are not deployed — /play sends stake+tc+preview).
+  // If no id is present we fall back to the old offline bot demo
   if (!gameId) {
     return <OfflineBotScreen stake={previewStake} tc={previewTc} />;
   }
-  return <LiveGame gameId={gameId} router={router} />;
+  return (
+    <LiveGame
+      gameId={gameId}
+      router={router}
+      isVsMaster={isVsMaster}
+      vsMasterPrize={isVsMaster ? (DIFFICULTY_PRIZE[vsMasterDifficulty] ?? 0.01) : undefined}
+    />
+  );
 }
+
+type ClaimStatus =
+  | { status: "idle" }
+  | { status: "claiming" }
+  | { status: "claimed"; txHash: string }
+  | { status: "error"; message: string };
 
 function LiveGame({
   gameId,
   router,
+  isVsMaster = false,
+  vsMasterPrize,
 }: {
   gameId: string;
   router: ReturnType<typeof useRouter>;
+  isVsMaster?: boolean;
+  vsMasterPrize?: number;
 }) {
   const { address } = useWallet();
   const { token } = useSession();
   const toast = useToast();
+  const { claim: claimPrize } = useClaimDailyPuzzle();
 
   const [game, setGame] = useState<GameState | null>(null);
   const [fen, setFen] = useState<string>(START_FEN);
@@ -87,7 +109,9 @@ function LiveGame({
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sendingMove, setSendingMove] = useState(false);
+  const [botThinking, setBotThinking] = useState(false);
   const [drawOfferedBy, setDrawOfferedBy] = useState<string | null>(null);
+  const [claimStatus, setClaimStatus] = useState<ClaimStatus>({ status: "idle" });
 
   const wsRef = useRef<GameSocket | null>(null);
 
@@ -235,15 +259,24 @@ function LiveGame({
       if (!move) return false;
 
       const uci = `${from}${to}${move.promotion ?? ""}`;
-      setSendingMove(true);
 
       if (isBot) {
+        // Optimistic update: show player's move immediately, then wait for bot reply.
+        const prevFen = fen;
+        setFen(probe.fen());
+        setLastMove({ from: move.from as Square, to: move.to as Square });
+        setBotThinking(true);
+        setSendingMove(true);
+
         // REST path — BE returns server-validated FEN and bot's reply, then
         // we re-fetch to pick up the latest move (fen includes bot's response).
         api
           .makeMove(gameId, uci)
           .then((r) => {
             if (!r.valid) {
+              // Rollback optimistic update
+              setFen(prevFen);
+              setLastMove(null);
               toast.show({
                 title: "Move rejected",
                 message: r.reason,
@@ -251,10 +284,32 @@ function LiveGame({
               });
               return;
             }
+            // If player won a vs-master game, claim prize automatically
+            if (isVsMaster && r.gameOver && r.claimData) {
+              const cd = r.claimData as BotWinClaimData;
+              setClaimStatus({ status: "claiming" });
+              claimPrize({
+                contractAddress: cd.contractAddress,
+                day: BigInt(cd.day),
+                nonce: cd.nonce as `0x${string}`,
+                amountWei: BigInt(cd.amountWei),
+                signature: cd.signature as `0x${string}`,
+              })
+                .then((hash) => setClaimStatus({ status: "claimed", txHash: hash }))
+                .catch((err) => {
+                  setClaimStatus({ status: "error", message: (err as Error).message });
+                  toast.showError(err);
+                });
+            }
             // Wait a tick so the BE has written the bot move, then refresh.
-            setTimeout(loadGame, BOT_POLL_MS);
+            setTimeout(() => loadGame().finally(() => setBotThinking(false)), BOT_POLL_MS);
           })
-          .catch((e) => toast.showError(e))
+          .catch((e) => {
+            setFen(prevFen);
+            setLastMove(null);
+            setBotThinking(false);
+            toast.showError(e);
+          })
           .finally(() => setSendingMove(false));
       } else {
         // PvP path — WS broadcasts move:made to both clients.
@@ -263,7 +318,7 @@ function LiveGame({
       }
       return true;
     },
-    [result, myColor, turn, sendingMove, fen, isBot, gameId, loadGame, toast],
+    [result, myColor, turn, sendingMove, fen, isBot, gameId, loadGame, toast, isVsMaster, claimPrize],
   );
 
   const legalMovesFrom = useCallback(
@@ -324,7 +379,7 @@ function LiveGame({
       <div className="bg-hero px-4 pt-[max(env(safe-area-inset-top),14px)] pb-4 text-white">
         <header className="flex items-center justify-between">
           <Link
-            href="/lobby"
+            href={isVsMaster ? "/vs-master" : "/lobby"}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15"
             aria-label="Back"
           >
@@ -337,7 +392,11 @@ function LiveGame({
               }`}
             />
             <span className="text-[11px] font-semibold tracking-wide">
-              {waiting ? "Waiting for opponent" : `Live · ${tc}`}
+              {waiting
+                ? "Waiting for opponent"
+                : isVsMaster
+                ? `vs Master · ${tc}`
+                : `Live · ${tc}`}
             </span>
           </div>
           <button
@@ -356,7 +415,9 @@ function LiveGame({
         <PlayerBar
           color={orientation === "white" ? "black" : "white"}
           name={
-            opponentAddress
+            isVsMaster
+              ? "Master Bot (AI)"
+              : opponentAddress
               ? `Opponent · ${truncateAddress(opponentAddress)}`
               : isBot
               ? "Stockfish Bot"
@@ -370,6 +431,12 @@ function LiveGame({
               (orientation === "black" && turn === "w"))
           }
         />
+        {botThinking && (
+          <div className="mt-1 flex items-center gap-1.5 px-1 text-[11px] text-[color:var(--color-ink-2)]">
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-[color:var(--color-primary)]/30 border-t-[color:var(--color-primary)]" />
+            Bot is thinking…
+          </div>
+        )}
 
         <div className="mt-3">
           <Chessboard
@@ -395,13 +462,15 @@ function LiveGame({
         <div className="card mt-4 flex items-center justify-between px-4 py-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-[color:var(--color-ink-2)]">
-              If you win
+              {isVsMaster ? "Prize on win" : "If you win"}
             </p>
             <p className="text-lg font-bold text-[color:var(--color-primary)]">
-              {formatStableLocal(potential, "IDR")}
+              {isVsMaster && vsMasterPrize !== undefined
+                ? `${formatCusd(vsMasterPrize)} cUSD`
+                : formatStableLocal(potential, "IDR")}
             </p>
             <p className="text-[11px] text-[color:var(--color-ink-2)]">
-              Stake {formatCusd(stake)} · in escrow
+              {isVsMaster ? "From DailyPuzzlePool · free to play" : `Stake ${formatCusd(stake)} · in escrow`}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
@@ -461,9 +530,14 @@ function LiveGame({
         <ResultModal
           result={result}
           reason={endReason}
-          amount={result === "win" ? potential : result === "lose" ? -stake : 0}
-          onPlayAgain={() => router.push("/play")}
+          amount={
+            isVsMaster
+              ? result === "win" ? (vsMasterPrize ?? 0) : 0
+              : result === "win" ? potential : result === "lose" ? -stake : 0
+          }
+          onPlayAgain={() => router.push(isVsMaster ? "/vs-master" : "/play")}
           onClose={() => setResult(null)}
+          claimStatus={isVsMaster ? claimStatus : undefined}
         />
       )}
     </main>
@@ -529,12 +603,14 @@ function ResultModal({
   amount,
   onPlayAgain,
   onClose,
+  claimStatus,
 }: {
   result: UiResult;
   reason: string | null;
   amount: number;
   onPlayAgain: () => void;
   onClose: () => void;
+  claimStatus?: ClaimStatus;
 }) {
   const isWin = result === "win";
   const isDraw = result === "draw";
@@ -570,11 +646,35 @@ function ResultModal({
           </h2>
           <p className={`mt-3 text-4xl font-extrabold tracking-tight ${accentClass}`}>
             {amount > 0 ? "+" : amount < 0 ? "−" : ""}
-            {formatStableLocal(Math.abs(amount), "IDR")}
+            {formatCusd(Math.abs(amount))} cUSD
           </p>
           <p className="mt-1 text-xs text-[color:var(--color-ink-2)]">
             {reason ? `Ended · ${reason}` : "Settled on Celo"}
           </p>
+
+          {/* vs-master claim status */}
+          {claimStatus && isWin && (
+            <div className="mt-3 w-full rounded-2xl bg-[color:var(--color-primary-50)] px-4 py-3 text-center">
+              {claimStatus.status === "claiming" && (
+                <div className="flex items-center justify-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[color:var(--color-primary)]/30 border-t-[color:var(--color-primary)]" />
+                  <p className="text-xs font-semibold text-[color:var(--color-primary)]">
+                    Claiming prize on-chain…
+                  </p>
+                </div>
+              )}
+              {claimStatus.status === "claimed" && (
+                <p className="text-xs font-bold text-[color:var(--color-success)]">
+                  Prize claimed! Tx: {claimStatus.txHash.slice(0, 10)}…{claimStatus.txHash.slice(-6)}
+                </p>
+              )}
+              {claimStatus.status === "error" && (
+                <p className="text-xs font-semibold text-[color:var(--color-danger)]">
+                  Claim failed: {claimStatus.message}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <button

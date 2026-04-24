@@ -81,7 +81,7 @@ const router = Router();
  */
 router.post("/create", authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { stake, timeControl = "3+0", color = "random", mode = "pvp" } = req.body;
+    const { stake, timeControl = "3+0", color = "random", mode = "pvp", difficulty = 1 } = req.body;
     const stakeNum = parseFloat(stake);
 
     if (!isValidStake(stakeNum)) {
@@ -93,7 +93,7 @@ router.post("/create", authMiddleware, async (req: Request, res: Response): Prom
       return;
     }
 
-    const game = await createGame(req.playerAddress!, stakeNum, timeControl, color, mode);
+    const game = await createGame(req.playerAddress!, stakeNum, timeControl, color, mode, Number(difficulty));
 
     // FE should call MatchEscrow.createMatch(timeControlSeconds) with value = stakeWei
     // The BE event watcher (MatchCreated) will pick up the emitted matchId and link it here

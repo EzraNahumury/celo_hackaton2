@@ -85,6 +85,14 @@ export interface PuzzleAttempt {
   created_at: string;
 }
 
+export interface ClaimData {
+  contractAddress: `0x${string}`;
+  day: string;
+  nonce: `0x${string}`;
+  amountWei: string;
+  signature: `0x${string}`;
+}
+
 export interface MoveResult {
   valid: boolean;
   reason?: string;
@@ -95,6 +103,8 @@ export interface MoveResult {
   gameOver?: boolean;
   result?: GameResult;
   isBotGame?: boolean;
+  /** Present when player wins a vs-master bot game — FE calls DailyPuzzlePool.claim() */
+  claimData?: ClaimData | null;
 }
 
 export interface JWTPayload {

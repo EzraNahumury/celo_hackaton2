@@ -1,3 +1,5 @@
+import { encodePacked, keccak256, parseUnits, toBytes } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { supabase } from "../config/supabase";
 import { validateMove, getTurn } from "./chessEngine";
 import { switchTurn as clockSwitchTurn, startClock, stopClock, getTimeRemaining } from "./clockService";
@@ -7,9 +9,66 @@ import { settleMatch as settleOnChain, cancelMatch as cancelOnChain } from "./es
 import { getBestMove } from "./stockfish";
 import { normalizeAddress, parseTimeControl } from "../utils/helpers";
 import { logger } from "../utils/logger";
-import { Game, MoveResult, GameResult } from "../types";
+import { ClaimData, Game, MoveResult, GameResult } from "../types";
+import { env } from "../config/env";
 
 const BOT_ADDRESS = "0x0000000000000000000000000000000000000b07";
+
+// In-memory map: gameId → bot difficulty (1=Easy, 2=Medium, 3=Hard)
+const gameDifficulty = new Map<string, number>();
+
+// Prize amounts per difficulty level (in cUSD wei)
+const BOT_DIFFICULTY_PRIZE: Record<number, bigint> = {
+  1: parseUnits("0.01", 18),
+  2: parseUnits("0.05", 18),
+  3: parseUnits("0.10", 18),
+};
+
+function getOracleAccount() {
+  const pk = env.ORACLE_PRIVATE_KEY ?? env.SERVER_WALLET_PRIVATE_KEY;
+  if (!pk) return null;
+  try { return privateKeyToAccount(pk); } catch { return null; }
+}
+
+async function generateBotWinClaim(
+  gameId: string,
+  playerAddress: string,
+  difficulty: number
+): Promise<ClaimData | null> {
+  if (!env.DAILY_PUZZLE_POOL_ADDRESS) return null;
+  const oracle = getOracleAccount();
+  if (!oracle) return null;
+
+  const addr = normalizeAddress(playerAddress) as `0x${string}`;
+  const prizeWei = BOT_DIFFICULTY_PRIZE[difficulty] ?? BOT_DIFFICULTY_PRIZE[1];
+  const dayIndex = BigInt(Math.floor(Date.now() / 1000 / 86400));
+
+  // Nonce = keccak256(keccak256(gameId), playerAddress) — unique per game+player
+  const nonce = keccak256(encodePacked(
+    ["bytes32", "address"],
+    [keccak256(toBytes(gameId)), addr]
+  ));
+
+  const msgHash = keccak256(encodePacked(
+    ["address", "uint256", "bytes32", "uint256"],
+    [addr, dayIndex, nonce, prizeWei]
+  ));
+
+  try {
+    const signature = await oracle.signMessage({ message: { raw: toBytes(msgHash) } });
+    logger.info("Bot win claim voucher signed", { gameId, player: addr, difficulty, prizeWei: prizeWei.toString() });
+    return {
+      contractAddress: env.DAILY_PUZZLE_POOL_ADDRESS,
+      day: dayIndex.toString(),
+      nonce,
+      amountWei: prizeWei.toString(),
+      signature,
+    };
+  } catch (err) {
+    logger.error("Bot win claim signing failed", { error: (err as Error).message, gameId });
+    return null;
+  }
+}
 
 async function ensureBotPlayer(): Promise<void> {
   const { data } = await supabase
@@ -33,7 +92,8 @@ export async function createGame(
   stake: number,
   timeControl: string,
   color: "white" | "black" | "random",
-  mode: "pvp" | "bot"
+  mode: "pvp" | "bot",
+  difficulty: number = 1
 ): Promise<Game> {
   const address = normalizeAddress(playerAddress);
   const { timeMs } = parseTimeControl(timeControl);
@@ -94,9 +154,10 @@ export async function createGame(
 
   if (isBotGame) {
     startClock(game.id, timeControl, (color) => handleTimeout(game.id, color));
+    gameDifficulty.set(game.id, Math.min(3, Math.max(1, Math.floor(difficulty))));
   }
 
-  logger.info("Game created", { gameId: game.id, mode, stake });
+  logger.info("Game created", { gameId: game.id, mode, stake, difficulty: isBotGame ? difficulty : undefined });
   return game;
 }
 
@@ -207,9 +268,10 @@ export async function makeMove(
     time_remaining_ms: isWhite ? whiteTimeMs : blackTimeMs,
   });
 
-  // Handle end-of-game
+  // Handle end-of-game (player's move caused checkmate/draw)
+  let claimData: ClaimData | null = null;
   if (result.gameOver && result.result) {
-    await handleGameEnd(game, result.result as GameResult);
+    claimData = await handleGameEnd(game, result.result as GameResult);
   }
 
   const moveResult: MoveResult = {
@@ -221,14 +283,16 @@ export async function makeMove(
     gameOver: result.gameOver,
     result: result.result as GameResult | undefined,
     isBotGame: game.mode === "bot",
+    claimData,
   };
 
-  // Bot response
+  // Bot response (only when player's move did not end the game)
   if (game.mode === "bot" && !result.gameOver) {
     const botAddress = game.white_address === BOT_ADDRESS ? game.white_address : game.black_address;
     if (botAddress === BOT_ADDRESS) {
       try {
-        const botMove = await getBestMove(result.newFen!, 3);
+        const diff = gameDifficulty.get(gameId) ?? 1;
+        const botMove = await getBestMove(result.newFen!, diff);
         const botResult = await makeMove(gameId, BOT_ADDRESS, botMove);
         if (botResult.valid) {
           moveResult.fen = botResult.fen;
@@ -237,6 +301,8 @@ export async function makeMove(
           moveResult.moveNumber = botResult.moveNumber;
           moveResult.gameOver = botResult.gameOver;
           moveResult.result = botResult.result;
+          // Bot's move ending = bot won or draw, no player prize
+          moveResult.claimData = null;
         }
       } catch (err) {
         logger.error("Bot move failed", { error: (err as Error).message });
@@ -283,13 +349,28 @@ export async function resignGame(
   return { result, payoutTxHash: null };
 }
 
-async function handleGameEnd(game: Game, result: GameResult): Promise<void> {
-  if (!game.white_address || !game.black_address) return;
-  if (game.mode === "bot") return; // No ELO/payout for bot games
+async function handleGameEnd(game: Game, result: GameResult): Promise<ClaimData | null> {
+  if (!game.white_address || !game.black_address) return null;
+
+  if (game.mode === "bot") {
+    // Check if the human player won (not the bot)
+    const playerWon =
+      (result === "white_win" && game.white_address !== BOT_ADDRESS) ||
+      (result === "black_win" && game.black_address !== BOT_ADDRESS);
+
+    if (playerWon) {
+      const playerAddress = game.white_address !== BOT_ADDRESS
+        ? game.white_address
+        : game.black_address;
+      const diff = gameDifficulty.get(game.id) ?? 1;
+      return await generateBotWinClaim(game.id, playerAddress, diff);
+    }
+    return null; // Bot won or draw — no prize
+  }
 
   const white = await getPlayer(game.white_address);
   const black = await getPlayer(game.black_address);
-  if (!white || !black) return;
+  if (!white || !black) return null;
 
   const isDraw = result === "draw";
   const winnerAddr = result === "white_win" ? game.white_address : game.black_address;
@@ -333,6 +414,8 @@ async function handleGameEnd(game: Game, result: GameResult): Promise<void> {
       : (winnerAddr as `0x${string}`);
     await settleOnChain(game.id, matchId, onchainWinner, payout);
   }
+
+  return null; // PvP games don't use DailyPuzzlePool claim
 }
 
 async function handleTimeout(gameId: string, color: "white" | "black"): Promise<void> {

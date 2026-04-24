@@ -67,6 +67,8 @@ export type CreateGameRequest = {
   timeControl: TimeControl;
   color?: "white" | "black" | "random";
   mode?: GameMode;
+  /** Bot difficulty: 1=Easy ($0.01), 2=Medium ($0.05), 3=Hard ($0.10) */
+  difficulty?: number;
 };
 
 export type CreateGameResponse = {
@@ -131,6 +133,14 @@ export type LobbyEntry = {
   created_at: Timestamp;
 };
 
+export type BotWinClaimData = {
+  contractAddress: `0x${string}`;
+  day: string;
+  nonce: `0x${string}`;
+  amountWei: string;
+  signature: `0x${string}`;
+};
+
 export type MoveResult =
   | {
       valid: true;
@@ -141,6 +151,8 @@ export type MoveResult =
       gameOver: boolean;
       isBotGame: boolean;
       result?: GameResult;
+      /** Present when player wins a vs-master bot game — call DailyPuzzlePool.claim() */
+      claimData?: BotWinClaimData | null;
     }
   | {
       valid: false;

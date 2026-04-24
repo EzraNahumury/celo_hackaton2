@@ -133,3 +133,14 @@ export function SparkleIcon(p: IconProps) {
     </svg>
   );
 }
+
+export function BotIcon(p: IconProps) {
+  return (
+    <svg {...base(p)}>
+      <rect x="3" y="11" width="18" height="10" rx="2" />
+      <path d="M12 11V7" />
+      <circle cx="12" cy="5" r="2" />
+      <path d="M8 15.5h.01M12 15.5h.01M16 15.5h.01" strokeWidth={2.5} strokeLinecap="round" />
+    </svg>
+  );
+}

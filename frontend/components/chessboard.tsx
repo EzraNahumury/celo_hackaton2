@@ -5,8 +5,11 @@ import type { Color, Square } from "chess.js";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+// Always use the solid (filled) glyph for both colors.
+// White Unicode pieces (♔♕…) are outline-only glyphs — they render hollow.
+// Using solid glyphs (♚♛…) for whites lets us fill them properly with CSS color.
 const UNICODE: Record<string, string> = {
-  K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙",
+  K: "♚", Q: "♛", R: "♜", B: "♝", N: "♞", P: "♟",
   k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟",
 };
 
@@ -131,6 +134,18 @@ export function Chessboard({
             const isWhite = piece && piece === piece.toUpperCase();
             const interactive = canInteract;
 
+            // Square background: light=#dce9f8 dark=#3d6db5, adapted to app blue theme
+            // Last-move highlight: amber (#f5b118) tint — warm accent on cool board
+            const squareBg = isCheck
+              ? (dark ? "#9b2a22" : "#fde9e7")
+              : isSelected
+              ? (dark ? "#1a4f9c" : "#b8d8ff")
+              : isLastFrom || isLastTo
+              ? (dark ? "#8a6830" : "#f0d88a")
+              : dark
+              ? "#3d6db5"
+              : "#dce9f8";
+
             return (
               <button
                 type="button"
@@ -138,27 +153,27 @@ export function Chessboard({
                 onClick={() => handleSquareClick(sq, piece)}
                 disabled={!interactive}
                 aria-label={sq}
+                style={{ backgroundColor: squareBg }}
                 className={[
-                  "relative flex items-center justify-center text-[34px] leading-none select-none",
+                  "relative flex items-center justify-center text-[36px] leading-none select-none",
                   "transition-colors",
-                  dark ? "bg-[#b6d0f2]" : "bg-[#f0f7ff]",
-                  isLastFrom || isLastTo
-                    ? "ring-2 ring-inset ring-[color:var(--color-primary)]/60"
-                    : "",
-                  isSelected
-                    ? "ring-2 ring-inset ring-[color:var(--color-primary)]"
-                    : "",
-                  isCheck ? "!bg-[color:var(--color-danger-soft)]" : "",
-                  interactive ? "cursor-pointer active:brightness-95" : "cursor-default",
+                  interactive ? "cursor-pointer active:brightness-90" : "cursor-default",
                 ].join(" ")}
               >
                 {piece && (
                   <span
-                    className={`${
+                    style={
                       isWhite
-                        ? "text-white drop-shadow-[0_2px_0_rgba(10,42,92,0.4)]"
-                        : "text-[#0a2a5c] drop-shadow-[0_1px_0_rgba(255,255,255,0.55)]"
-                    }`}
+                        ? {
+                            color: "#ffffff",
+                            WebkitTextStroke: "1px #1a1a1a",
+                            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
+                          }
+                        : {
+                            color: "#1a1a1a",
+                            filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
+                          }
+                    }
                   >
                     {UNICODE[piece]}
                   </span>
@@ -167,23 +182,31 @@ export function Chessboard({
                 {isLegalTarget && !piece && (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute h-[22%] w-[22%] rounded-full bg-[color:var(--color-primary)]/55"
+                    className="pointer-events-none absolute h-[28%] w-[28%] rounded-full"
+                    style={{ backgroundColor: "rgba(0,0,0,0.20)" }}
                   />
                 )}
                 {isLegalTarget && piece && (
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-[6%] rounded-[6px] ring-[3px] ring-[color:var(--color-danger)]/70"
+                    className="pointer-events-none absolute inset-0 rounded-none"
+                    style={{ boxShadow: "inset 0 0 0 4px rgba(0,0,0,0.30)" }}
                   />
                 )}
 
                 {c === 0 && (
-                  <span className="absolute left-1 top-0.5 text-[9px] font-semibold text-[color:var(--color-ink-2)]/75">
+                  <span
+                    className="absolute left-0.5 top-0.5 text-[9px] font-bold leading-none"
+                    style={{ color: dark ? "#dce9f8" : "#3d6db5" }}
+                  >
                     {orientation === "white" ? 8 - r : r + 1}
                   </span>
                 )}
                 {r === 7 && (
-                  <span className="absolute right-1 bottom-0.5 text-[9px] font-semibold text-[color:var(--color-ink-2)]/75">
+                  <span
+                    className="absolute right-0.5 bottom-0.5 text-[9px] font-bold leading-none"
+                    style={{ color: dark ? "#dce9f8" : "#3d6db5" }}
+                  >
                     {String.fromCharCode(97 + (orientation === "white" ? c : 7 - c))}
                   </span>
                 )}

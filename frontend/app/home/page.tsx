@@ -8,7 +8,7 @@ import { useBalance } from "wagmi";
 import { BottomNav } from "@/components/bottom-nav";
 import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
 import { useToast } from "@/components/toast";
-import { BoltIcon, ClubIcon, PuzzleIcon, SwordsIcon, TrophyIcon } from "@/components/icons";
+import { BoltIcon, BotIcon, ClubIcon, PuzzleIcon, TrophyIcon } from "@/components/icons";
 import { useStakeTokenBalance, useStakeTokenFaucet } from "@/hooks/use-stake-token";
 import { useWallet } from "@/hooks/use-connect";
 import { usePlayerStats } from "@/hooks/use-player-stats";
@@ -145,11 +145,10 @@ export default function HomePage() {
 
       <main className="flex-1 px-5 pb-4">
         <section className="card relative z-10 -mt-6 p-4 fade-in-up">
-          <div className="grid grid-cols-4 gap-2">
-            <QuickLink href="/play" label="1v1 Match" Icon={SwordsIcon} variant="primary" />
-            <QuickLink href="/lobby" label="Lobby" Icon={TrophyIcon} variant="sky" />
-            <QuickLink href="/puzzle" label="Puzzle" Icon={PuzzleIcon} variant="primary" />
-            <QuickLink href="/club" label="Club" Icon={ClubIcon} variant="sky" />
+          <div className="grid grid-cols-3 gap-2">
+            <QuickLink href="/vs-master" label="vs Master" Icon={BotIcon} variant="primary" />
+            <QuickLink href="/puzzle" label="Puzzle" Icon={PuzzleIcon} variant="sky" />
+            <QuickLink href="/club" label="Club" Icon={ClubIcon} variant="primary" />
           </div>
         </section>
 
@@ -158,7 +157,7 @@ export default function HomePage() {
             Gambit Contracts
           </h2>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <ContractTile name="MatchEscrow" desc="1v1 cUSD stake + payout" href="/play" />
+            <ContractTile name="DailyPuzzlePool" desc="AI & Puzzle prizes" href="/vs-master" />
             <ContractTile name="PuzzlePool" desc="Daily Merkle claim" href="/puzzle" />
             <ContractTile name="ClubVault" desc="Weekly 4-8 members" href="/club" />
             <ContractTile name="GambitBadges" desc="Soulbound ERC-5192" href="/profile" />
