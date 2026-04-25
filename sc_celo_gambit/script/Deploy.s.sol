@@ -25,7 +25,7 @@ contract Deploy is Script {
         MatchEscrow      escrow          = new MatchEscrow(address(hub));
         PuzzlePool       puzzlePool      = new PuzzlePool(address(hub));
         DailyPuzzlePool  dailyPuzzlePool = new DailyPuzzlePool(oracle, cusd);
-        ClubVault        clubVault       = new ClubVault(address(hub));
+        ClubVault        clubVault       = new ClubVault(address(hub), cusd);
         GambitBadges     badges          = new GambitBadges(address(hub), baseURI);
 
         // 3. Register all addresses in hub

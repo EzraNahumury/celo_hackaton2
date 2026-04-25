@@ -1,18 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { decodeEventLog, formatUnits } from "viem";
+import { useWaitForTransactionReceipt } from "wagmi";
 import { ChevronLeft, ClubIcon, TrophyIcon } from "@/components/icons";
 import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
 import { useWallet } from "@/hooks/use-connect";
-import { useCreateClub, useJoinClub } from "@/hooks/use-club-vault";
+import {
+  useCreateClub,
+  useJoinClub,
+  useClub,
+  useClubMembers,
+  useStartNewWeek,
+  type ClubTxPhase,
+} from "@/hooks/use-club-vault";
 import { CLUB_FEE_BPS, CLUB_FIRST_BPS, CLUB_ROLL_BPS, CLUB_SECOND_BPS } from "@/lib/contracts";
-import { formatCelo, formatLocal, truncateAddress } from "@/lib/format";
+import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
+import { clubVaultAbi } from "@/lib/abis/club-vault";
 
 const BUY_IN_OPTIONS = [0.5, 1, 2] as const;
 const MAX_MEMBER_OPTIONS = [4, 6, 8] as const;
 
-type Tab = "create" | "join";
+type Tab = "create" | "join" | "club";
+type JoinUiPhase = "idle" | ClubTxPhase;
+
+function safeFormatUnits(value: bigint | null | undefined, decimals = 18) {
+  return value !== undefined && value !== null ? formatUnits(value, decimals) : "0";
+}
 
 export default function ClubPage() {
   const { address, isConnected, connect, isConnecting } = useWallet();
@@ -22,17 +37,59 @@ export default function ClubPage() {
   const [joinId, setJoinId] = useState<string>("");
   const [joinBuyIn, setJoinBuyIn] = useState<string>("1");
   const [err, setErr] = useState<string | null>(null);
+  const [myClubId, setMyClubId] = useState<bigint | undefined>();
+  const [clubIdInput, setClubIdInput] = useState<string>("");
+  const [copied, setCopied] = useState(false);
+  const [joinPhase, setJoinPhase] = useState<JoinUiPhase>("idle");
 
   const { createClub, isPending: creating, hash: createHash } = useCreateClub();
   const { joinClub, isPending: joining, hash: joinHash } = useJoinClub();
+  const { startNewWeek, isPending: startingWeek, hash: newWeekHash } = useStartNewWeek();
   const { status: createStatus } = useTxStatus(createHash);
   const { status: joinStatus } = useTxStatus(joinHash);
+
+  const { data: createReceipt } = useWaitForTransactionReceipt({ hash: createHash });
+  const { data: joinReceipt } = useWaitForTransactionReceipt({ hash: joinHash });
+
+  useEffect(() => {
+    if (!createReceipt) return;
+    for (const log of createReceipt.logs) {
+      try {
+        const decoded = decodeEventLog({
+          abi: clubVaultAbi,
+          eventName: "ClubCreated",
+          data: log.data,
+          topics: log.topics as [`0x${string}`, ...`0x${string}`[]],
+        });
+        setMyClubId(decoded.args.clubId);
+        setTab("club");
+        break;
+      } catch {}
+    }
+  }, [createReceipt]);
+
+  useEffect(() => {
+    if (!joinReceipt || !joinId) return;
+    setJoinPhase("idle");
+    setMyClubId(BigInt(joinId));
+    setTab("club");
+  }, [joinReceipt, joinId]);
+
+  const { data: clubData, refetch: refetchClub } = useClub(myClubId);
+  const { data: membersData, refetch: refetchMembers } = useClubMembers(myClubId);
+
+  const { data: newWeekReceipt } = useWaitForTransactionReceipt({ hash: newWeekHash });
+  useEffect(() => {
+    if (!newWeekReceipt) return;
+    refetchClub();
+    refetchMembers();
+  }, [newWeekReceipt, refetchClub, refetchMembers]);
 
   const onCreate = async () => {
     setErr(null);
     try {
       if (!isConnected) return connect();
-      await createClub({ maxMembers, buyInCelo: buyIn });
+      await createClub({ maxMembers, buyIn });
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -42,12 +99,59 @@ export default function ClubPage() {
     setErr(null);
     try {
       if (!isConnected) return connect();
-      const id = BigInt(joinId);
-      await joinClub({ clubId: id, buyInCelo: parseFloat(joinBuyIn) });
+      setJoinPhase("approve");
+      await joinClub({
+        clubId: BigInt(joinId),
+        buyIn: parseFloat(joinBuyIn),
+        onPhaseChange: setJoinPhase,
+      });
+    } catch (e) {
+      setJoinPhase("idle");
+      setErr((e as Error).message);
+    }
+  };
+
+  const onStartNewWeek = async () => {
+    if (!myClubId || !clubData) return;
+    setErr(null);
+    try {
+      await startNewWeek({ clubId: myClubId, buyIn: Number(safeFormatUnits(clubData.buyIn, 18)) });
     } catch (e) {
       setErr((e as Error).message);
     }
   };
+
+  const onCopyId = () => {
+    if (!myClubId) return;
+    navigator.clipboard.writeText(myClubId.toString());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const clubBuyInCusd = Number(safeFormatUnits(clubData?.buyIn, 18));
+  const clubPotCusd = Number(safeFormatUnits(clubData?.pot, 18));
+  const isCreator = !!address && clubData?.creator?.toLowerCase() === address.toLowerCase();
+  const isActive = clubData?.state === 0;
+  const memberCount = membersData?.length ?? 0;
+  const spotsLeft = clubData ? Number(clubData.maxMembers) - memberCount : 0;
+  const joinWorking = joinPhase !== "idle" || joining || isConnecting || joinStatus === "pending";
+  const joinButtonLabel = !isConnected
+    ? "Connect MiniPay"
+    : joinPhase === "approve"
+      ? "Approving cUSD..."
+      : joinPhase === "approve_wait"
+        ? "Waiting for confirmation..."
+        : joinPhase === "write" || joining || joinStatus === "pending"
+          ? "Joining club..."
+          : "Join Club";
+  const joinPhaseHint =
+    joinPhase === "approve"
+      ? "Sending token approval transaction."
+      : joinPhase === "approve_wait"
+        ? "Approve sent. Waiting for on-chain confirmation before joining."
+        : joinPhase === "write"
+          ? "Approval confirmed. Sending join transaction now."
+          : null;
 
   return (
     <main className="flex-1">
@@ -63,34 +167,28 @@ export default function ClubPage() {
           <p className="text-sm font-bold">Chess Club</p>
           <span className="h-9 w-9" />
         </header>
-
         <div className="mt-6 text-center">
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15">
             <ClubIcon size={26} />
           </div>
           <h1 className="mt-3 text-2xl font-extrabold">ClubVault.sol</h1>
           <p className="text-xs text-white/80">
-            4–8 members · split {CLUB_FIRST_BPS / 100}/{CLUB_SECOND_BPS / 100}/{CLUB_ROLL_BPS / 100}
-            {" "}· fee {CLUB_FEE_BPS / 100}%
+            4-8 members · split {CLUB_FIRST_BPS / 100}/{CLUB_SECOND_BPS / 100}/{CLUB_ROLL_BPS / 100} · fee{" "}
+            {CLUB_FEE_BPS / 100}%
           </p>
         </div>
       </div>
 
       <div className="px-5 pb-8">
         <div className="card -mt-6 relative z-10 flex p-1">
-          <TabBtn active={tab === "create"} onClick={() => setTab("create")}>
-            Create Club
-          </TabBtn>
-          <TabBtn active={tab === "join"} onClick={() => setTab("join")}>
-            Join
-          </TabBtn>
+          <TabBtn active={tab === "create"} onClick={() => setTab("create")}>Create</TabBtn>
+          <TabBtn active={tab === "join"} onClick={() => setTab("join")}>Join</TabBtn>
+          <TabBtn active={tab === "club"} onClick={() => setTab("club")}>My Club</TabBtn>
         </div>
 
-        {tab === "create" ? (
+        {tab === "create" && (
           <section className="card mt-4 p-5">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-              Weekly buy-in
-            </h2>
+            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">Weekly buy-in</h2>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {BUY_IN_OPTIONS.map((b) => {
                 const active = b === buyIn;
@@ -99,26 +197,16 @@ export default function ClubPage() {
                     key={b}
                     type="button"
                     onClick={() => setBuyIn(b)}
-                    className={`rounded-2xl border-2 px-3 py-4 text-left ${
-                      active
-                        ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-50)]"
-                        : "border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)]"
-                    }`}
+                    className={`rounded-2xl border-2 px-3 py-4 text-left ${active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-50)]" : "border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)]"}`}
                   >
-                    <p className="text-lg font-bold text-[color:var(--color-ink-0)]">
-                      {b.toFixed(2)} CELO
-                    </p>
-                    <p className="text-[11px] text-[color:var(--color-ink-2)]">
-                      {formatLocal(b, "IDR")}
-                    </p>
+                    <p className="text-lg font-bold text-[color:var(--color-ink-0)]">{b.toFixed(2)} cUSD</p>
+                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(b, "IDR")}</p>
                   </button>
                 );
               })}
             </div>
 
-            <h2 className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-              Member capacity (4–8)
-            </h2>
+            <h2 className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">Member capacity (4-8)</h2>
             <div className="mt-3 flex gap-2">
               {MAX_MEMBER_OPTIONS.map((m) => {
                 const active = m === maxMembers;
@@ -127,11 +215,7 @@ export default function ClubPage() {
                     key={m}
                     type="button"
                     onClick={() => setMaxMembers(m)}
-                    className={`flex-1 rounded-full border px-4 py-2 text-sm font-bold ${
-                      active
-                        ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)] text-white"
-                        : "border-[color:var(--color-border)] bg-white text-[color:var(--color-ink-1)]"
-                    }`}
+                    className={`flex-1 rounded-full border px-4 py-2 text-sm font-bold ${active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)] text-white" : "border-[color:var(--color-border)] bg-white text-[color:var(--color-ink-1)]"}`}
                   >
                     {m} members
                   </button>
@@ -140,13 +224,10 @@ export default function ClubPage() {
             </div>
 
             <div className="mt-4 rounded-2xl bg-[color:var(--color-surface-soft)] p-3 text-[11px] text-[color:var(--color-ink-2)]">
-              <p>
-                Full pot: {formatCelo(buyIn * maxMembers)} · winner gets{" "}
-                <b className="text-[color:var(--color-success)]">
-                  {formatCelo(buyIn * maxMembers * (CLUB_FIRST_BPS / 10_000) * (1 - CLUB_FEE_BPS / 10_000))}
-                </b>
-                . 10% carries over to next week.
-              </p>
+              Full pot: {formatCusd(buyIn * maxMembers)} · winner gets{" "}
+              <b className="text-[color:var(--color-success)]">
+                {formatCusd(buyIn * maxMembers * (CLUB_FIRST_BPS / 10_000) * (1 - CLUB_FEE_BPS / 10_000))}
+              </b>. 10% carries over to next week.
             </div>
 
             <button
@@ -155,34 +236,24 @@ export default function ClubPage() {
               disabled={creating || isConnecting || createStatus === "pending"}
               className="mt-5 w-full rounded-2xl bg-[color:var(--color-primary)] py-4 text-base font-bold text-white shadow-[var(--shadow-glow-primary)] disabled:opacity-70"
             >
-              {creating || createStatus === "pending"
-                ? "Submitting…"
-                : !isConnected
-                ? "Connect MiniPay"
-                : `Create Club · ${formatLocal(buyIn, "IDR")}`}
+              {creating || createStatus === "pending" ? "Submitting..." : !isConnected ? "Connect MiniPay" : `Create Club · ${formatStableLocal(buyIn, "IDR")}`}
             </button>
-            {createHash && (
-              <p className="mt-3 text-center">
-                <TxExplorerLink hash={createHash} />
-              </p>
-            )}
+            {createHash && <p className="mt-3 text-center"><TxExplorerLink hash={createHash} /></p>}
           </section>
-        ) : (
+        )}
+
+        {tab === "join" && (
           <section className="card mt-4 p-5">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-              Club ID
-            </h2>
+            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">Club ID</h2>
             <input
               value={joinId}
               onChange={(e) => setJoinId(e.target.value.replace(/\D/g, ""))}
               inputMode="numeric"
-              placeholder="12"
+              placeholder="e.g. 3"
               className="mt-2 w-full rounded-2xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
             />
 
-            <h2 className="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
-              Buy-in (must match pot)
-            </h2>
+            <h2 className="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">Buy-in (must match club)</h2>
             <input
               value={joinBuyIn}
               onChange={(e) => setJoinBuyIn(e.target.value)}
@@ -190,24 +261,148 @@ export default function ClubPage() {
               placeholder="1.00"
               className="mt-2 w-full rounded-2xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
             />
-            <p className="mt-1 text-[11px] text-[color:var(--color-ink-3)]">CELO</p>
+            <p className="mt-1 text-[11px] text-[color:var(--color-ink-3)]">cUSD</p>
 
             <button
               type="button"
               onClick={onJoin}
-              disabled={!joinId || joining || isConnecting || joinStatus === "pending"}
+              disabled={!joinId || joinWorking}
               className="mt-5 w-full rounded-2xl bg-[color:var(--color-primary)] py-4 text-base font-bold text-white shadow-[var(--shadow-glow-primary)] disabled:opacity-70"
             >
-              {joining || joinStatus === "pending"
-                ? "Submitting…"
-                : !isConnected
-                ? "Connect MiniPay"
-                : "Join Club"}
+              {joinButtonLabel}
             </button>
-            {joinHash && (
-              <p className="mt-3 text-center">
-                <TxExplorerLink hash={joinHash} />
+            {joinPhaseHint && (
+              <p className="mt-2 text-center text-[11px] text-[color:var(--color-ink-2)]">
+                {joinPhaseHint}
               </p>
+            )}
+            {joinHash && <p className="mt-3 text-center"><TxExplorerLink hash={joinHash} /></p>}
+          </section>
+        )}
+
+        {tab === "club" && (
+          <section className="card mt-4 p-5">
+            {!myClubId ? (
+              <>
+                <p className="text-center text-sm text-[color:var(--color-ink-2)]">Enter your club ID to view</p>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={clubIdInput}
+                    onChange={(e) => setClubIdInput(e.target.value.replace(/\D/g, ""))}
+                    inputMode="numeric"
+                    placeholder="Club ID"
+                    className="flex-1 rounded-2xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => clubIdInput && setMyClubId(BigInt(clubIdInput))}
+                    disabled={!clubIdInput}
+                    className="rounded-2xl bg-[color:var(--color-primary)] px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+                  >
+                    View
+                  </button>
+                </div>
+              </>
+            ) : !clubData ? (
+              <p className="py-4 text-center text-sm text-[color:var(--color-ink-2)]">Loading club...</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between rounded-2xl bg-[color:var(--color-surface-soft)] px-4 py-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[color:var(--color-ink-3)]">Club ID</p>
+                    <p className="text-3xl font-extrabold text-[color:var(--color-ink-0)]">#{myClubId.toString()}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onCopyId}
+                    className="rounded-xl border border-[color:var(--color-border)] bg-white px-3 py-2 text-xs font-bold text-[color:var(--color-ink-1)]"
+                  >
+                    {copied ? "Copied!" : "Copy ID"}
+                  </button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    {isActive ? "Active" : "Closed"}
+                  </span>
+                  {isCreator && (
+                    <span className="rounded-full bg-[color:var(--color-primary-50)] px-3 py-1 text-xs font-bold text-[color:var(--color-primary)]">
+                      You are the creator
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-[color:var(--color-surface-soft)] p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-[color:var(--color-ink-3)]">Pot</p>
+                    <p className="text-base font-bold text-[color:var(--color-success)]">{formatCusd(clubPotCusd)}</p>
+                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubPotCusd, "IDR")}</p>
+                  </div>
+                  <div className="rounded-2xl bg-[color:var(--color-surface-soft)] p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-[color:var(--color-ink-3)]">Buy-in</p>
+                    <p className="text-base font-bold text-[color:var(--color-ink-0)]">{formatCusd(clubBuyInCusd)}</p>
+                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubBuyInCusd, "IDR")}</p>
+                  </div>
+                </div>
+
+                <h2 className="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-[color:var(--color-ink-2)]">
+                  Members {memberCount}/{clubData.maxMembers.toString()}
+                </h2>
+                <div className="mt-2 space-y-1">
+                  {membersData?.map((m) => (
+                    <div key={m} className="flex items-center gap-2 rounded-xl bg-[color:var(--color-surface-soft)] px-3 py-2">
+                      <span className="h-2 w-2 flex-shrink-0 rounded-full bg-green-400" />
+                      <span className="flex-1 font-mono text-xs text-[color:var(--color-ink-1)]">{truncateAddress(m)}</span>
+                      {m.toLowerCase() === clubData.creator.toLowerCase() && (
+                        <span className="text-[10px] text-[color:var(--color-ink-3)]">creator</span>
+                      )}
+                      {m.toLowerCase() === address?.toLowerCase() && (
+                        <span className="text-[10px] font-bold text-[color:var(--color-primary)]">you</span>
+                      )}
+                    </div>
+                  ))}
+                  {spotsLeft > 0 && (
+                    <p className="py-1 text-center text-[11px] text-[color:var(--color-ink-3)]">
+                      {spotsLeft} spot{spotsLeft !== 1 ? "s" : ""} remaining
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-dashed border-[color:var(--color-border)] p-3 text-center">
+                  <p className="text-[11px] text-[color:var(--color-ink-2)]">Share this ID with friends to join</p>
+                  <p className="mt-1 text-2xl font-extrabold text-[color:var(--color-primary)]">#{myClubId.toString()}</p>
+                  <button
+                    type="button"
+                    onClick={onCopyId}
+                    className="mt-2 rounded-full bg-[color:var(--color-primary-50)] px-4 py-1.5 text-xs font-bold text-[color:var(--color-primary)]"
+                  >
+                    {copied ? "Copied!" : "Copy Club ID"}
+                  </button>
+                </div>
+
+                {isCreator && !isActive && (
+                  <button
+                    type="button"
+                    onClick={onStartNewWeek}
+                    disabled={startingWeek}
+                    className="mt-4 w-full rounded-2xl bg-[color:var(--color-primary)] py-4 text-base font-bold text-white shadow-[var(--shadow-glow-primary)] disabled:opacity-70"
+                  >
+                    {startingWeek ? "Starting..." : "Start New Week"}
+                  </button>
+                )}
+                {newWeekHash && <p className="mt-2 text-center"><TxExplorerLink hash={newWeekHash} /></p>}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMyClubId(undefined);
+                    setClubIdInput("");
+                  }}
+                  className="mt-4 w-full text-center text-xs text-[color:var(--color-ink-3)] underline"
+                >
+                  View a different club
+                </button>
+              </>
             )}
           </section>
         )}
@@ -221,13 +416,11 @@ export default function ClubPage() {
         <section className="card mt-4 p-4">
           <div className="flex items-center gap-2">
             <TrophyIcon size={16} className="text-[color:var(--color-amber)]" />
-            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
-              Winner benefit
-            </p>
+            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">Winner benefit</p>
           </div>
           <p className="mt-2 text-[11px] text-[color:var(--color-ink-2)]">
             Weekly winner auto-mints a soulbound <b>CLUB_CHAMPION</b> badge on{" "}
-            GambitBadges.sol — ERC-5192 (non-transferable).
+            GambitBadges.sol - ERC-5192 (non-transferable).
           </p>
         </section>
 
@@ -241,24 +434,12 @@ export default function ClubPage() {
   );
 }
 
-function TabBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-2xl py-2.5 text-sm font-bold transition-colors ${
-        active
-          ? "bg-[color:var(--color-primary)] text-white"
-          : "bg-transparent text-[color:var(--color-ink-2)]"
-      }`}
+      className={`flex-1 rounded-2xl py-2.5 text-sm font-bold transition-colors ${active ? "bg-[color:var(--color-primary)] text-white" : "bg-transparent text-[color:var(--color-ink-2)]"}`}
     >
       {children}
     </button>

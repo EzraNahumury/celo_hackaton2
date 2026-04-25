@@ -2,21 +2,24 @@ export const clubVaultAbi = [
   {
     type: "function",
     name: "createClub",
-    stateMutability: "payable",
-    inputs: [{ name: "maxMembers", type: "uint256" }],
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "maxMembers", type: "uint256" },
+      { name: "buyIn", type: "uint256" },
+    ],
     outputs: [{ name: "clubId", type: "uint256" }],
   },
   {
     type: "function",
     name: "joinClub",
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     inputs: [{ name: "clubId", type: "uint256" }],
     outputs: [],
   },
   {
     type: "function",
     name: "startNewWeek",
-    stateMutability: "payable",
+    stateMutability: "nonpayable",
     inputs: [{ name: "clubId", type: "uint256" }],
     outputs: [],
   },
@@ -30,6 +33,13 @@ export const clubVaultAbi = [
       { name: "second", type: "address" },
     ],
     outputs: [],
+  },
+  {
+    type: "function",
+    name: "token",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address" }],
   },
   {
     type: "function",

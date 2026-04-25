@@ -2,13 +2,15 @@
 pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./GambitHub.sol";
 import "./interfaces/IGambitBadges.sol";
 
-/// @notice Weekly club tournament vault. Collects buy-ins, holds pot, distributes 70/20/10.
+/// @notice Weekly club tournament vault. Collects buy-ins in cUSD, holds pot, distributes 70/20/10.
 contract ClubVault is ReentrancyGuard {
 
     GambitHub public immutable hub;
+    IERC20    public immutable token; // cUSD
 
     enum ClubState { Active, Closed }
 
@@ -27,8 +29,8 @@ contract ClubVault is ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) public isMember;
     mapping(uint256 => uint256) public carryover;
 
-    uint256 public constant FIRST_BPS      = 7000;
-    uint256 public constant SECOND_BPS     = 2000;
+    uint256 public constant FIRST_BPS  = 7000;
+    uint256 public constant SECOND_BPS = 2000;
     // 10% remainder is rolled to next week as retention hook
 
     event ClubCreated(uint256 indexed clubId, address indexed creator, uint256 buyIn);
@@ -41,49 +43,50 @@ contract ClubVault is ReentrancyGuard {
         _;
     }
 
-    constructor(address _hub) {
-        require(_hub != address(0), "zero addr");
-        hub = GambitHub(_hub);
+    constructor(address _hub, address _token) {
+        require(_hub != address(0) && _token != address(0), "zero addr");
+        hub   = GambitHub(_hub);
+        token = IERC20(_token);
     }
 
     // ── Club lifecycle ───────────────────────────────────────────────────────
 
-    function createClub(uint256 maxMembers) external payable nonReentrant returns (uint256 clubId) {
-        require(msg.value > 0, "buy-in required");
-        // FIX: minimum 4 members per README spec ("4–8 member")
+    function createClub(uint256 maxMembers, uint256 buyIn) external nonReentrant returns (uint256 clubId) {
+        require(buyIn > 0, "buy-in required");
         require(maxMembers >= 4 && maxMembers <= 8, "4-8 members");
+        token.transferFrom(msg.sender, address(this), buyIn);
 
         clubId = ++clubCount;
         Club storage c = clubs[clubId];
         c.creator    = msg.sender;
-        c.buyIn      = msg.value;
+        c.buyIn      = buyIn;
         c.maxMembers = maxMembers;
         c.weekStart  = block.timestamp;
         c.state      = ClubState.Active;
-        c.pot        = msg.value;
+        c.pot        = buyIn;
 
         c.members.push(msg.sender);
         isMember[clubId][msg.sender] = true;
 
-        emit ClubCreated(clubId, msg.sender, msg.value);
+        emit ClubCreated(clubId, msg.sender, buyIn);
         emit MemberJoined(clubId, msg.sender);
     }
 
-    function joinClub(uint256 clubId) external payable nonReentrant {
+    function joinClub(uint256 clubId) external nonReentrant {
         Club storage c = clubs[clubId];
         require(c.state == ClubState.Active, "not active");
         require(!isMember[clubId][msg.sender], "already member");
         require(c.members.length < c.maxMembers, "club full");
-        require(msg.value == c.buyIn, "wrong buy-in");
+        token.transferFrom(msg.sender, address(this), c.buyIn);
 
         c.members.push(msg.sender);
         isMember[clubId][msg.sender] = true;
-        c.pot += msg.value;
+        c.pot += c.buyIn;
 
         emit MemberJoined(clubId, msg.sender);
     }
 
-    /// @notice Operator settles the week. Fee deducted, splits 70/20/10, auto-mints ClubChampion.
+    /// @notice Operator settles the week. Fee sent to treasury, splits 70/20/10, auto-mints ClubChampion.
     function settle(
         uint256 clubId,
         address first,
@@ -102,38 +105,35 @@ contract ClubVault is ReentrancyGuard {
         uint256 toSecond = (afterFee * SECOND_BPS) / 10_000;
         uint256 roll     = afterFee - toFirst - toSecond;
 
-        if (fee > 0) hub.forwardFees{value: fee}();
+        if (fee > 0) token.transfer(hub.treasury(), fee);
 
         carryover[clubId] = roll;
         c.state = ClubState.Closed;
 
-        _send(first,  toFirst);
-        _send(second, toSecond);
+        token.transfer(first,  toFirst);
+        token.transfer(second, toSecond);
 
-        // FIX: auto-mint CLUB_CHAMPION soulbound badge to weekly winner
         _tryMintClubChampion(first);
 
         emit ClubSettled(clubId, first, second, roll);
     }
 
     /// @notice Creator resets the club for next week. Members re-join and pay buy-in again.
-    /// @dev Carryover from previous week is preserved and added to next settlement pot.
-    function startNewWeek(uint256 clubId) external payable nonReentrant {
+    function startNewWeek(uint256 clubId) external nonReentrant {
         Club storage c = clubs[clubId];
         require(c.state == ClubState.Closed, "not closed");
         require(msg.sender == c.creator, "not creator");
-        require(msg.value == c.buyIn, "wrong buy-in");
+        token.transferFrom(msg.sender, address(this), c.buyIn);
 
-        // Clear old member list and isMember mapping (max 8 iterations — safe)
+        // Clear old member list (max 8 iterations — safe)
         for (uint256 i = 0; i < c.members.length; i++) {
             isMember[clubId][c.members[i]] = false;
         }
         delete c.members;
 
-        // Creator re-joins as first member for new week
         c.members.push(msg.sender);
         isMember[clubId][msg.sender] = true;
-        c.pot       = msg.value;
+        c.pot       = c.buyIn;
         c.weekStart = block.timestamp;
         c.state     = ClubState.Active;
 
@@ -161,11 +161,4 @@ contract ClubVault is ReentrancyGuard {
             try b.mint(winner, 3) {} catch {}
         }
     }
-
-    function _send(address to, uint256 amount) internal {
-        (bool ok,) = to.call{value: amount}("");
-        require(ok, "transfer failed");
-    }
-
-    receive() external payable {}
 }

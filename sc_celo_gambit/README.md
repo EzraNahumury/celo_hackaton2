@@ -1,6 +1,6 @@
 # Gambit Smart Contracts
 
-Chess microearning MiniApp for MiniPay — native CELO settlement on Celo.
+Chess microearning MiniApp for MiniPay — cUSD (ERC20) settlement on Celo.
 Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 
 ## Contracts
@@ -10,7 +10,7 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 | `GambitHub` | Central registry, fee routing 50/50, AccessControl, Pausable |
 | `MatchEscrow` | 1v1 escrow, oracle ECDSA signing, FairPlayHold, auto-mint badge |
 | `PuzzlePool` | Daily prize pool, sponsor deposit, Merkle claim |
-| `ClubVault` | Weekly club 4-8 members, 70/20/10 split, carryover |
+| `ClubVault` | Weekly club 4-8 members, cUSD ERC20 buy-in, 70/20/10 split, carryover |
 | `GambitBadges` | Soulbound ERC-5192: FIRST_WIN / PUZZLE_STREAK_7 / CLUB_CHAMPION / RATING_1400 / FAIR_PLAY_HOLD |
 | `MockCUSD` *(testnet only)* | Mintable ERC20 mock stablecoin — public faucet 100 cUSD, no cooldown |
 | `DailyPuzzlePool` | Immediate cUSD prize claim via oracle-signed voucher, max 3 claims/day |
@@ -24,7 +24,7 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 | GambitHub | `0xA68141b7b36d1161757e1790BcB5199d4EfFF281` | [view](https://sepolia.celoscan.io/address/0xa68141b7b36d1161757e1790bcb5199d4efff281) |
 | MatchEscrow | `0xF8CeF418419E8F1588d6EB26095358CFAF635dC5` | [view](https://sepolia.celoscan.io/address/0xf8cef418419e8f1588d6eb26095358cfaf635dc5) |
 | PuzzlePool | `0xbE34567ADF30c233103AEbFBB2b940e06DAc7366` | [view](https://sepolia.celoscan.io/address/0xbe34567adf30c233103aebfbb2b940e06dac7366) |
-| ClubVault | `0x3665188aB87951Bb42984cFECC14bF5925C21644` | [view](https://sepolia.celoscan.io/address/0x3665188ab87951bb42984cfecc14bf5925c21644) |
+| ClubVault | `0xEf351A9A0eBE2EB8bC9774e642362faC10Cb7f4D` | [view](https://sepolia.celoscan.io/address/0xef351a9a0ebe2eb8bc9774e642362fac10cb7f4d) |
 | GambitBadges | `0xB31A2CAB3e267528815067cD6F7d6D7957f9FfB9` | [view](https://sepolia.celoscan.io/address/0xb31a2cab3e267528815067cd6f7d6d7957f9ffb9) |
 
 > All 5 game contracts are **verified** on Celoscan.
@@ -47,7 +47,7 @@ Built for **Celo Proof of Ship Season 2** (deadline April 26, 2026).
 ## Fee Structure
 
 - Match fee: **3%** → 50% to PuzzlePool, 50% to Treasury
-- Club fee: **2%** → distributed 70/20/10 to club members
+- Club fee: **2%** → sent to treasury; remaining 98% split 70/20/10 to club members
 
 ## Stack
 
@@ -97,6 +97,14 @@ forge script script/Deploy.s.sol \
   --broadcast \
   --verify \
   -vvvv
+```
+
+### Deploy ulang ClubVault saja (cUSD ERC20)
+
+Pastikan `GAMBIT_HUB_ADDRESS` dan `CUSD_ADDRESS` sudah diisi di `.env`, lalu:
+
+```bash
+forge script script/DeployClubVault.s.sol --rpc-url celo_sepolia --broadcast --verify -vvvv
 ```
 
 ### Deploy MockCUSD (testnet only)
@@ -174,6 +182,7 @@ cast call 0xA68141b7b36d1161757e1790BcB5199d4EfFF281 \
 - [x] 87/87 unit tests passing
 - [x] Deploy ke Celo Sepolia
 - [x] Semua contracts verified di Celoscan
+- [x] ClubVault di-upgrade ke cUSD ERC20 (`0xEf351A9A0eBE2EB8bC9774e642362faC10Cb7f4D`)
 - [x] MockCUSD dengan public faucet tanpa cooldown (testnet)
 - [x] Deploy MockCUSD ke Celo Sepolia: `0x0b8c930d8A8823cD80FCdA84f9E7C64184bdC700`
 - [x] DailyPuzzlePool contract selesai & deployed: `0xA60a7C4FAb8dEE21a3ec5BA39355Ff915da68C29`

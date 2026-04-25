@@ -35,7 +35,7 @@ Gambit ship tiga product surface di hari pertama.
 
 **Micro-Stake 1v1.** Lawan stranger atau teman di stake 0.50 / 1 / 2 cUSD. Pemenang ambil pot minus fee protokol 3%. Time control Blitz (3+2) dan Rapid (10+0). Didesain untuk istirahat lima menit, bukan sesi satu jam.
 
-**Chess Club.** Bikin klub privat 4–8 member. Semua stake weekly buy-in (default 1 cUSD). Round-robin selama seminggu. Juara 70%, runner-up 20%, 10% carry over ke minggu depan sebagai retention hook.
+**Chess Club.** Bikin klub privat 4–8 member. Semua stake weekly buy-in cUSD (default 1 cUSD, ERC20 transfer langsung dari wallet). Round-robin selama seminggu. Juara 70%, runner-up 20%, 10% carry over ke minggu depan sebagai retention hook.
 
 Chess.com melayani puncak piramida global. **Gambit melayani dasar piramida.**
 
@@ -113,7 +113,7 @@ Setiap stake, payout, distribusi puzzle-pool, dan buy-in klub adalah transaksi C
 | `GambitHub.sol` | Registry utama. Track match dan klub aktif; routing fee protokol; pausable buat emergency. |
 | `MatchEscrow.sol` | Escrow stake match 1v1. Kedua pemain deposit; oracle-signed result memicu payout; timeout-based dispute resolution. |
 | `PuzzlePool.sol` | Prize pool harian. Terima deposit sponsor + share fee protokol; distribusi Merkle end-of-day ke top finisher. |
-| `ClubVault.sol` | Turnamen klub mingguan. Collect buy-in, pegang pot, distribusi split 70/20/10 pas settlement. |
+| `ClubVault.sol` | Turnamen klub mingguan. Collect buy-in cUSD (ERC20), pegang pot, distribusi split 70/20/10 pas settlement. |
 | `GambitBadges.sol` | Soulbound ERC-5192 untuk milestone — "First Win," "Puzzle Streak 7," "Club Champion," "1400 Club." |
 
 ### Game Engine Off-Chain

@@ -17,7 +17,7 @@ Chess microearning MiniApp untuk MiniPay. Settlement cUSD di Celo.
 | `GambitHub.sol` | Registry, fee routing 50/50 (PuzzlePool & treasury), AccessControl, Pausable |
 | `MatchEscrow.sol` | Escrow 1v1, oracle ECDSA, FairPlayHold check, auto-mint FIRST_WIN badge |
 | `PuzzlePool.sol` | Daily prize pool, sponsor deposit, Merkle claim |
-| `ClubVault.sol` | Weekly club 4-8 members, split 70/20/10, carryover, startNewWeek() |
+| `ClubVault.sol` | Weekly club 4-8 members, cUSD ERC20 buy-in (approve+transferFrom), split 70/20/10, carryover, startNewWeek() |
 | `GambitBadges.sol` | Soulbound ERC-5192: FIRST_WIN/PUZZLE_STREAK_7/CLUB_CHAMPION/RATING_1400/FAIR_PLAY_HOLD |
 
 ## Test Status
