@@ -353,19 +353,27 @@ async function handleGameEnd(game: Game, result: GameResult): Promise<ClaimData 
   if (!game.white_address || !game.black_address) return null;
 
   if (game.mode === "bot") {
-    // Check if the human player won (not the bot)
+    const playerAddress = game.white_address !== BOT_ADDRESS
+      ? game.white_address
+      : game.black_address;
+
     const playerWon =
       (result === "white_win" && game.white_address !== BOT_ADDRESS) ||
       (result === "black_win" && game.black_address !== BOT_ADDRESS);
+    const isDraw = result === "draw";
 
     if (playerWon) {
-      const playerAddress = game.white_address !== BOT_ADDRESS
-        ? game.white_address
-        : game.black_address;
       const diff = gameDifficulty.get(game.id) ?? 1;
+      const prizeWei = BOT_DIFFICULTY_PRIZE[diff] ?? BOT_DIFFICULTY_PRIZE[1];
+      const prizeAmount = Number(prizeWei) / 1e18;
+      await updatePlayerStats(playerAddress, "win", prizeAmount);
       return await generateBotWinClaim(game.id, playerAddress, diff);
+    } else if (isDraw) {
+      await updatePlayerStats(playerAddress, "draw");
+    } else {
+      await updatePlayerStats(playerAddress, "loss");
     }
-    return null; // Bot won or draw — no prize
+    return null;
   }
 
   const white = await getPlayer(game.white_address);

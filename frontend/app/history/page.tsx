@@ -63,9 +63,17 @@ function classifyRow(
 
   let kind: Row["kind"] = "pending";
   if (game.status === "completed") {
-    if (game.result === "draw") kind = "draw";
-    else if (game.winner_address?.toLowerCase() === me.toLowerCase()) kind = "win";
-    else kind = "lose";
+    if (game.result === "draw" || game.result === "abort") {
+      kind = "draw";
+    } else if (
+      game.winner_address?.toLowerCase() === me.toLowerCase() ||
+      (game.result === "white_win" && game.playerColor === "white") ||
+      (game.result === "black_win" && game.playerColor === "black")
+    ) {
+      kind = "win";
+    } else {
+      kind = "lose";
+    }
   } else if (game.status === "cancelled" || game.status === "expired") {
     kind = "draw"; // refunded, neutral
   }
@@ -75,8 +83,8 @@ function classifyRow(
   const refund = Number(refundTx?.amount ?? 0);
 
   let net = 0;
-  if (kind === "win") net = payout - deposit;
-  else if (kind === "lose") net = -deposit;
+  if (kind === "win") net = payout > 0 ? payout - deposit : 0;
+  else if (kind === "lose") net = depositTx ? -deposit : 0;
   else if (kind === "draw") net = refund > 0 ? 0 : payout - deposit;
   else net = 0;
 
