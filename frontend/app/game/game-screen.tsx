@@ -11,6 +11,7 @@ import { useWallet } from "@/hooks/use-connect";
 import { useSession } from "@/hooks/use-session";
 import { useClaimDailyPuzzle } from "@/hooks/use-daily-puzzle-pool";
 import { api } from "@/lib/api";
+import { getAuthToken } from "@/lib/auth";
 import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
 import { connectGameWs, type GameSocket } from "@/lib/ws";
 import type { BotWinClaimData, GameResult, GameState, WsServerEvent } from "@/types/api";
@@ -95,7 +96,7 @@ function LiveGame({
   vsMasterPrize?: number;
 }) {
   const { address } = useWallet();
-  const { token } = useSession();
+  const { token, loading: authLoading, refresh: refreshSession } = useSession();
   const toast = useToast();
   const { claim: claimPrize } = useClaimDailyPuzzle();
 
@@ -112,6 +113,7 @@ function LiveGame({
   const [botThinking, setBotThinking] = useState(false);
   const [drawOfferedBy, setDrawOfferedBy] = useState<string | null>(null);
   const [claimStatus, setClaimStatus] = useState<ClaimStatus>({ status: "idle" });
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
 
   const wsRef = useRef<GameSocket | null>(null);
 
@@ -182,6 +184,21 @@ function LiveGame({
   useEffect(() => {
     loadGame();
   }, [loadGame]);
+
+  // 1b. When bot plays White, poll until it has made its first move.
+  const botIsWhite = isBot && myColor === "b";
+
+  useEffect(() => {
+    if (!botIsWhite || !game || game.move_count > 0 || game.status !== "active") return;
+    let cancelled = false;
+    const poll = setInterval(() => {
+      loadGame().then(() => {
+        if (cancelled) return;
+        if ((game?.move_count ?? 0) > 0) clearInterval(poll);
+      });
+    }, BOT_POLL_MS);
+    return () => { cancelled = true; clearInterval(poll); };
+  }, [botIsWhite, game, loadGame]);
 
   // 2. Live updates — WebSocket for PvP, polling for bot mode.
   useEffect(() => {
@@ -270,8 +287,8 @@ function LiveGame({
 
         // REST path — BE returns server-validated FEN and bot's reply, then
         // we re-fetch to pick up the latest move (fen includes bot's response).
-        api
-          .makeMove(gameId, uci)
+        (getAuthToken() ? Promise.resolve() : refreshSession())
+          .then(() => api.makeMove(gameId, uci))
           .then((r) => {
             if (!r.valid) {
               // Rollback optimistic update
@@ -329,15 +346,29 @@ function LiveGame({
     [chess, myColor, turn],
   );
 
-  const onResign = async () => {
+  const onResign = () => {
     if (!game || result) return;
-    if (!confirm("Resign this game? Your stake goes to your opponent.")) return;
+    setShowResignConfirm(true);
+  };
+
+  const confirmResign = async () => {
+    setShowResignConfirm(false);
     if (!isBot && wsRef.current) {
       wsRef.current.resign();
       return;
     }
     try {
-      const r = await api.resignGame(gameId);
+      if (!getAuthToken()) await refreshSession();
+      let r;
+      try {
+        r = await api.resignGame(gameId);
+      } catch (e) {
+        const err = e as { code?: string };
+        if (err.code === "AUTH_REQUIRED" || err.code === "AUTH_INVALID") {
+          await refreshSession();
+          r = await api.resignGame(gameId);
+        } else throw e;
+      }
       if (myColor) setResult(uiResultFromGame(r.result, myColor));
       setEndReason("resignation");
     } catch (e) {
@@ -378,13 +409,7 @@ function LiveGame({
     <main className="flex-1">
       <div className="bg-hero px-4 pt-[max(env(safe-area-inset-top),14px)] pb-4 text-white">
         <header className="flex items-center justify-between">
-          <Link
-            href={isVsMaster ? "/vs-master" : "/lobby"}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15"
-            aria-label="Back"
-          >
-            <ChevronLeft size={18} />
-          </Link>
+          <div className="w-9" />
           <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5">
             <span
               className={`h-1.5 w-1.5 rounded-full ${
@@ -402,7 +427,7 @@ function LiveGame({
           <button
             type="button"
             onClick={onResign}
-            disabled={!!result || waiting}
+            disabled={!!result || waiting || authLoading}
             className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 disabled:opacity-50"
             aria-label="Resign"
           >
@@ -534,6 +559,40 @@ function LiveGame({
           onClose={() => setResult(null)}
           claimStatus={isVsMaster ? claimStatus : undefined}
         />
+      )}
+
+      {showResignConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[color:var(--color-ink-0)]/60 px-4 pb-6 backdrop-blur-sm">
+          <div className="w-full max-w-[430px] fade-in-up rounded-[32px] bg-white p-6 shadow-[var(--shadow-raised)]">
+            <div className="flex flex-col items-center text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--color-danger-soft)] text-[color:var(--color-danger)]">
+                <FlagIcon size={26} />
+              </span>
+              <h2 className="mt-4 text-xl font-extrabold tracking-tight text-[color:var(--color-ink-0)]">
+                Resign game?
+              </h2>
+              <p className="mt-2 text-sm text-[color:var(--color-ink-2)]">
+                {isBot ? "The game will end immediately." : "Your stake goes to your opponent."}
+              </p>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowResignConfirm(false)}
+                className="flex-1 rounded-2xl border border-[color:var(--color-border)] py-3 text-sm font-bold text-[color:var(--color-ink-1)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmResign}
+                className="flex-1 rounded-2xl bg-[color:var(--color-danger)] py-3 text-sm font-bold text-white"
+              >
+                Resign
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

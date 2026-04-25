@@ -100,6 +100,11 @@ export default function VsMasterPage() {
         `/game?id=${encodeURIComponent(game.gameId)}&vsmaster=1&difficulty=${selectedLevel}`
       );
     } catch (e) {
+      const err = e as { code?: string; data?: { gameId?: string } };
+      if (err.code === "ACTIVE_GAME_EXISTS" && err.data?.gameId) {
+        router.push(`/game?id=${encodeURIComponent(err.data.gameId)}`);
+        return;
+      }
       toast.showError(e);
     } finally {
       setBusy(false);

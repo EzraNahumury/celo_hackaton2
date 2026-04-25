@@ -63,7 +63,7 @@ function tickClock(gameId: string): void {
   }
 }
 
-export function switchTurn(gameId: string): { whiteTimeMs: number; blackTimeMs: number } | null {
+export function switchTurn(gameId: string, applyIncrement = true): { whiteTimeMs: number; blackTimeMs: number } | null {
   const state = activeClocks.get(gameId);
   if (!state) return null;
 
@@ -73,10 +73,10 @@ export function switchTurn(gameId: string): { whiteTimeMs: number; blackTimeMs: 
 
   if (state.activeColor === "white") {
     state.whiteTimeMs -= elapsed;
-    state.whiteTimeMs += state.incrementMs;
+    if (applyIncrement) state.whiteTimeMs += state.incrementMs;
   } else {
     state.blackTimeMs -= elapsed;
-    state.blackTimeMs += state.incrementMs;
+    if (applyIncrement) state.blackTimeMs += state.incrementMs;
   }
 
   state.activeColor = state.activeColor === "white" ? "black" : "white";

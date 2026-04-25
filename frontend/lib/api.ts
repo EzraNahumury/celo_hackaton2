@@ -54,7 +54,12 @@ function resolveApiUrl(): string {
 const API_URL = /* @__PURE__ */ (() => resolveApiUrl())();
 
 export class ApiError extends Error {
-  constructor(public code: string, message: string, public status: number) {
+  constructor(
+    public code: string,
+    message: string,
+    public status: number,
+    public data?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "ApiError";
   }
@@ -79,7 +84,7 @@ async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
     const body = await res.json().catch(() => null);
     const code = body?.code ?? body?.error?.code ?? `HTTP_${res.status}`;
     const message = body?.message ?? body?.error?.message ?? body?.error ?? res.statusText;
-    throw new ApiError(String(code), String(message), res.status);
+    throw new ApiError(String(code), String(message), res.status, body ?? undefined);
   }
   // 204 No Content
   if (res.status === 204) return undefined as T;

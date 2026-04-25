@@ -13,6 +13,7 @@ import { ClaimData, Game, MoveResult, GameResult } from "../types";
 import { env } from "../config/env";
 
 const BOT_ADDRESS = "0x0000000000000000000000000000000000000b07";
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 // In-memory map: gameId → bot difficulty (1=Easy, 2=Medium, 3=Hard)
 const gameDifficulty = new Map<string, number>();
@@ -96,6 +97,22 @@ export async function createGame(
   difficulty: number = 1
 ): Promise<Game> {
   const address = normalizeAddress(playerAddress);
+
+  // Prevent creating a new game while one is already active or waiting
+  const { data: existing } = await supabase
+    .from("games")
+    .select("id, status")
+    .or(`white_address.eq.${address},black_address.eq.${address}`)
+    .in("status", ["waiting", "active"])
+    .limit(1)
+    .single();
+
+  if (existing) {
+    const err = new Error("You already have an active game in progress") as Error & { statusCode: number; gameId: string };
+    err.statusCode = 409;
+    err.gameId = existing.id;
+    throw err;
+  }
   const { timeMs } = parseTimeControl(timeControl);
 
   let whiteAddress: string | null = null;
@@ -154,7 +171,20 @@ export async function createGame(
 
   if (isBotGame) {
     startClock(game.id, timeControl, (color) => handleTimeout(game.id, color));
-    gameDifficulty.set(game.id, Math.min(3, Math.max(1, Math.floor(difficulty))));
+    const diff = Math.min(3, Math.max(1, Math.floor(difficulty)));
+    gameDifficulty.set(game.id, diff);
+
+    // If bot plays White it must move first — trigger asynchronously so createGame returns fast
+    if (game.white_address === BOT_ADDRESS) {
+      setImmediate(async () => {
+        try {
+          const bestMove = await getBestMove(START_FEN, diff);
+          await makeMove(game.id, BOT_ADDRESS, bestMove);
+        } catch (err) {
+          logger.error("Bot failed to make first move", { gameId: game.id, error: (err as Error).message });
+        }
+      });
+    }
   }
 
   logger.info("Game created", { gameId: game.id, mode, stake, difficulty: isBotGame ? difficulty : undefined });
@@ -231,8 +261,9 @@ export async function makeMove(
     return { valid: false, reason: result.reason };
   }
 
-  // Switch clock
-  const times = clockSwitchTurn(gameId);
+  // Switch clock — bot moves don't earn increment (bot is instant)
+  const isBotMove = address === BOT_ADDRESS;
+  const times = clockSwitchTurn(gameId, !isBotMove);
   const whiteTimeMs = times?.whiteTimeMs ?? game.white_time_ms;
   const blackTimeMs = times?.blackTimeMs ?? game.black_time_ms;
   const moveNumber = game.move_count + 1;
@@ -367,6 +398,15 @@ async function handleGameEnd(game: Game, result: GameResult): Promise<ClaimData 
       const prizeWei = BOT_DIFFICULTY_PRIZE[diff] ?? BOT_DIFFICULTY_PRIZE[1];
       const prizeAmount = Number(prizeWei) / 1e18;
       await updatePlayerStats(playerAddress, "win", prizeAmount);
+      // Record payout so the activity page can show the prize amount
+      await supabase.from("transactions").insert({
+        game_id: game.id,
+        player_address: normalizeAddress(playerAddress),
+        tx_type: "payout",
+        tx_hash: null,
+        amount: prizeAmount,
+        status: "pending",
+      });
       return await generateBotWinClaim(game.id, playerAddress, diff);
     } else if (isDraw) {
       await updatePlayerStats(playerAddress, "draw");

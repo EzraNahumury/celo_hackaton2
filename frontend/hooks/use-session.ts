@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { clearAuth, ensureSession, getAuthToken, hasSessionFor } from "@/lib/auth";
 import { useWallet } from "./use-connect";
 
@@ -13,13 +13,23 @@ export function useSession() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     if (!isConnected || !address) {
-      clearAuth();
-      setToken(null);
-      return;
+      // Delay clearing auth to survive brief reconnects during navigation
+      clearTimerRef.current = setTimeout(() => {
+        clearAuth();
+        setToken(null);
+      }, 3000);
+      return () => {
+        if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+      };
+    }
+    if (clearTimerRef.current) {
+      clearTimeout(clearTimerRef.current);
+      clearTimerRef.current = null;
     }
     if (hasSessionFor(address)) {
       setToken(getAuthToken());

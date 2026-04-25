@@ -78,13 +78,15 @@ function classifyRow(
     kind = "draw"; // refunded, neutral
   }
 
-  const deposit = Number(depositTx?.amount ?? game.stake_amount ?? 0);
+  const isBot = game.mode === "bot";
+  // Bot games have no on-chain escrow deposit — only PvP uses stake_amount as fallback
+  const deposit = Number(depositTx?.amount ?? (isBot ? 0 : game.stake_amount ?? 0));
   const payout = Number(payoutTx?.amount ?? 0);
   const refund = Number(refundTx?.amount ?? 0);
 
   let net = 0;
   if (kind === "win") net = payout > 0 ? payout - deposit : 0;
-  else if (kind === "lose") net = depositTx ? -deposit : 0;
+  else if (kind === "lose") net = deposit > 0 ? -deposit : 0;
   else if (kind === "draw") net = refund > 0 ? 0 : payout - deposit;
   else net = 0;
 

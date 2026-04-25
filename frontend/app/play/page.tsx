@@ -116,6 +116,11 @@ export default function PlayPage() {
 
       router.push(`/game?id=${encodeURIComponent(game.gameId)}`);
     } catch (e) {
+      const err = e as { code?: string; data?: { gameId?: string } };
+      if (err.code === "ACTIVE_GAME_EXISTS" && err.data?.gameId) {
+        router.push(`/game?id=${encodeURIComponent(err.data.gameId)}`);
+        return;
+      }
       toast.showError(e);
     } finally {
       setPhase("idle");

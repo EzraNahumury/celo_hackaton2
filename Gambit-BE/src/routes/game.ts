@@ -93,7 +93,17 @@ router.post("/create", authMiddleware, async (req: Request, res: Response): Prom
       return;
     }
 
-    const game = await createGame(req.playerAddress!, stakeNum, timeControl, color, mode, Number(difficulty));
+    let game;
+    try {
+      game = await createGame(req.playerAddress!, stakeNum, timeControl, color, mode, Number(difficulty));
+    } catch (err) {
+      const e = err as Error & { statusCode?: number; gameId?: string };
+      if (e.statusCode === 409) {
+        res.status(409).json({ code: "ACTIVE_GAME_EXISTS", message: e.message, gameId: e.gameId });
+        return;
+      }
+      throw err;
+    }
 
     // FE should call MatchEscrow.createMatch(timeControlSeconds) with value = stakeWei
     // The BE event watcher (MatchCreated) will pick up the emitted matchId and link it here
