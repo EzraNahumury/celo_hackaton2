@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BottomNav } from "@/components/bottom-nav";
-import { ChevronRight, SparkleIcon, TrophyIcon } from "@/components/icons";
+import { ChevronRight, ClubIcon, SparkleIcon, TrophyIcon } from "@/components/icons";
 import { useWallet } from "@/hooks/use-connect";
 import { usePlayerHistory } from "@/hooks/use-player-history";
 import { usePlayerStats } from "@/hooks/use-player-stats";
+import { useClubHistory, type ClubActivityRow } from "@/hooks/use-club-history";
 import { ACTIVE_CHAIN, STAKE_TOKEN } from "@/lib/contracts";
 import { formatStableLocal, truncateAddress } from "@/lib/format";
 import type {
@@ -82,12 +83,16 @@ function classifyRow(
   return { game, depositTx, payoutTx, refundTx, net, kind };
 }
 
+type ActivityTab = "matches" | "club";
+
 export default function HistoryPage() {
   const { address, isConnected, connect, isConnecting } = useWallet();
   const { entry: stats, loading: statsLoading } = usePlayerStats(address);
   const { games, transactions, loading, error } = usePlayerHistory(address);
+  const { rows: clubRows, loading: clubLoading, error: clubError } = useClubHistory(address);
 
   const [openId, setOpenId] = useState<string | null>(null);
+  const [activityTab, setActivityTab] = useState<ActivityTab>("matches");
 
   const rows: Row[] = useMemo(() => {
     if (!address) return [];
@@ -141,8 +146,18 @@ export default function HistoryPage() {
           />
         </div>
 
+        {/* Tab switcher */}
+        <div className="card mt-4 flex p-1">
+          <TabBtn active={activityTab === "matches"} onClick={() => setActivityTab("matches")}>
+            Matches
+          </TabBtn>
+          <TabBtn active={activityTab === "club"} onClick={() => setActivityTab("club")}>
+            Club
+          </TabBtn>
+        </div>
+
         {!isConnected ? (
-          <div className="card mt-6 flex flex-col items-center gap-3 p-8 text-center">
+          <div className="card mt-4 flex flex-col items-center gap-3 p-8 text-center">
             <SparkleIcon
               size={28}
               className="animate-spin text-[color:var(--color-primary)]"
@@ -160,48 +175,86 @@ export default function HistoryPage() {
               {isConnecting ? "Connecting…" : "Connect MiniPay"}
             </button>
           </div>
-        ) : loading && rows.length === 0 ? (
-          <div className="mt-6 flex items-center justify-center py-10 text-sm text-[color:var(--color-ink-2)]">
-            Loading history…
-          </div>
-        ) : error ? (
-          <div className="card mt-6 p-4 text-[11px] text-[color:var(--color-danger)]">
-            Failed to load: {error}
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="card mt-6 flex flex-col items-center gap-2 p-8 text-center">
-            <SparkleIcon
-              size={28}
-              className="animate-spin text-[color:var(--color-ink-3)]"
-              style={{ animationDuration: "2.5s" }}
-            />
-            <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
-              No matches yet
-            </p>
-            <p className="text-[11px] text-[color:var(--color-ink-2)]">
-              Play your first match to see it here.
-            </p>
-            <Link
-              href="/play"
-              className="mt-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2 text-xs font-bold text-white"
-            >
-              Play Now
-            </Link>
-          </div>
-        ) : (
-          <ul className="mt-6 flex flex-col gap-2">
-            {rows.map((r) => (
-              <HistoryRow
-                key={r.game.id}
-                row={r}
-                open={openId === r.game.id}
-                onToggle={() =>
-                  setOpenId(openId === r.game.id ? null : r.game.id)
-                }
-                explorer={explorer}
+        ) : activityTab === "matches" ? (
+          loading && rows.length === 0 ? (
+            <div className="mt-6 flex items-center justify-center py-10 text-sm text-[color:var(--color-ink-2)]">
+              Loading history…
+            </div>
+          ) : error ? (
+            <div className="card mt-4 p-4 text-[11px] text-[color:var(--color-danger)]">
+              Failed to load: {error}
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="card mt-4 flex flex-col items-center gap-2 p-8 text-center">
+              <SparkleIcon
+                size={28}
+                className="animate-spin text-[color:var(--color-ink-3)]"
+                style={{ animationDuration: "2.5s" }}
               />
-            ))}
-          </ul>
+              <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
+                No matches yet
+              </p>
+              <p className="text-[11px] text-[color:var(--color-ink-2)]">
+                Play your first match to see it here.
+              </p>
+              <Link
+                href="/play"
+                className="mt-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2 text-xs font-bold text-white"
+              >
+                Play Now
+              </Link>
+            </div>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2">
+              {rows.map((r) => (
+                <HistoryRow
+                  key={r.game.id}
+                  row={r}
+                  open={openId === r.game.id}
+                  onToggle={() =>
+                    setOpenId(openId === r.game.id ? null : r.game.id)
+                  }
+                  explorer={explorer}
+                />
+              ))}
+            </ul>
+          )
+        ) : (
+          /* Club tab */
+          clubLoading ? (
+            <div className="mt-6 flex items-center justify-center py-10 text-sm text-[color:var(--color-ink-2)]">
+              Loading club activity…
+            </div>
+          ) : clubError ? (
+            <div className="card mt-4 p-4 text-[11px] text-[color:var(--color-danger)]">
+              Failed to load: {clubError}
+            </div>
+          ) : clubRows.length === 0 ? (
+            <div className="card mt-4 flex flex-col items-center gap-2 p-8 text-center">
+              <ClubIcon
+                size={28}
+                className="text-[color:var(--color-ink-3)]"
+              />
+              <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
+                No club activity yet
+              </p>
+              <p className="text-[11px] text-[color:var(--color-ink-2)]">
+                Create or join a club to see it here.
+              </p>
+              <Link
+                href="/club"
+                className="mt-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2 text-xs font-bold text-white"
+              >
+                Go to Club
+              </Link>
+            </div>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2">
+              {clubRows.map((r) => (
+                <ClubActivityRowItem key={r.id} row={r} explorer={explorer} />
+              ))}
+            </ul>
+          )
         )}
       </main>
       <BottomNav />
@@ -423,5 +476,109 @@ function DetailRow({ label, value }: { label: string; value: string }) {
         {value}
       </dd>
     </div>
+  );
+}
+
+function TabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-2xl py-2.5 text-sm font-bold transition-colors ${
+        active
+          ? "bg-[color:var(--color-primary)] text-white"
+          : "bg-transparent text-[color:var(--color-ink-2)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ClubActivityRowItem({
+  row,
+  explorer,
+}: {
+  row: ClubActivityRow;
+  explorer: string | undefined;
+}) {
+  const { clubId, kind, buyIn, net } = row;
+
+  const kindLabel =
+    kind === "created"
+      ? "Created Club"
+      : kind === "joined"
+        ? "Joined Club"
+        : kind === "won"
+          ? "Won Club"
+          : "2nd in Club";
+
+  const subLabel =
+    kind === "created" || kind === "joined"
+      ? `Buy-in ${buyIn.toFixed(2)} cUSD`
+      : kind === "won"
+        ? "1st place · 70% prize"
+        : "2nd place · 20% prize";
+
+  const chipClass =
+    kind === "won"
+      ? "bg-[color:var(--color-success-soft)] text-[color:var(--color-success)]"
+      : kind === "placed2nd"
+        ? "bg-[color:var(--color-primary-50)] text-[color:var(--color-primary)]"
+        : "bg-[color:var(--color-surface-soft)] text-[color:var(--color-ink-2)]";
+
+  const deltaClass =
+    net > 0
+      ? "text-[color:var(--color-success)]"
+      : net < 0
+        ? "text-[color:var(--color-danger)]"
+        : "text-[color:var(--color-ink-2)]";
+
+  const txUrl = explorer ? `${explorer}/tx/${row.txHash}` : undefined;
+
+  return (
+    <li className="card overflow-hidden">
+      <div className="flex w-full items-center gap-3 px-4 py-3">
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${chipClass}`}
+        >
+          {kind === "won" ? (
+            <TrophyIcon size={18} />
+          ) : (
+            <ClubIcon size={18} />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-[color:var(--color-ink-0)]">
+            {kindLabel} #{clubId.toString()}
+          </p>
+          <p className="text-[11px] text-[color:var(--color-ink-2)]">{subLabel}</p>
+        </div>
+        <div className="flex flex-col items-end gap-0.5">
+          <p className={`text-sm font-bold ${deltaClass}`}>
+            {net > 0 ? "+" : net < 0 ? "−" : ""}
+            {formatStableLocal(Math.abs(net), "IDR")}
+          </p>
+          {txUrl && (
+            <a
+              href={txUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-bold text-[color:var(--color-primary)]"
+            >
+              Verify ↗
+            </a>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }
