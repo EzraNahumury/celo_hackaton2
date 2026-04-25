@@ -533,7 +533,7 @@ function ClubActivityRowItem({
 
   const subLabel =
     kind === "created" || kind === "joined"
-      ? `Buy-in ${buyIn.toFixed(2)} cUSD`
+      ? `Buy-in ${buyIn.toFixed(2)} CELO`
       : kind === "won"
         ? "1st place · 70% prize"
         : "2nd place · 20% prize";

@@ -10,13 +10,12 @@ import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
 import { useWallet } from "@/hooks/use-connect";
 import { useJoinMatch } from "@/hooks/use-match-escrow";
 import { useSession } from "@/hooks/use-session";
-import { useApproveStakeToken } from "@/hooks/use-stake-token";
 import { api } from "@/lib/api";
 import { ACTIVE_CHAIN, CONTRACTS, STAKE_TOKEN } from "@/lib/contracts";
 import { formatStableLocal, truncateAddress } from "@/lib/format";
 import type { LobbyEntry } from "@/types/api";
 
-type Phase = "idle" | "approve" | "join";
+type Phase = "idle" | "join";
 
 export default function LobbyPage() {
   const router = useRouter();
@@ -143,7 +142,6 @@ function MatchRow({
   onNeedConnect: () => void;
 }) {
   const publicClient = usePublicClient({ chainId: ACTIVE_CHAIN.id });
-  const { approve, isPending: approving } = useApproveStakeToken();
   const { joinMatch, isPending: joining } = useJoinMatch();
   const toast = useToast();
 
@@ -154,7 +152,7 @@ function MatchRow({
 
   const creator = game.white_address ?? game.black_address ?? null;
   const isSelf = !!creator && myAddress === creator.toLowerCase();
-  const working = busy || approving || joining || status === "pending";
+  const working = busy || joining || status === "pending";
 
   const waitForReceipt = async (hash: `0x${string}`) => {
     if (!publicClient) throw new Error("Wallet RPC client is not ready");
@@ -195,19 +193,12 @@ function MatchRow({
         throw new Error("Backend returned an invalid match id");
       }
 
-      setPhase("approve");
-      const approveHash = await approve({
-        tokenAddress: depositTx.tokenAddress,
-        spender: escrowAddress,
-        amountWei: BigInt(depositTx.amount),
-      });
-      setTxHash(approveHash);
-      await waitForReceipt(approveHash);
-
+      // Native CELO stake — skip approve, pass stake as msg.value.
       setPhase("join");
       const joinHash = await joinMatch({
         escrowAddress,
         matchId: BigInt(String(onchainMatchId)),
+        stakeWei: BigInt(depositTx.amount),
       });
       setTxHash(joinHash);
       await waitForReceipt(joinHash);
@@ -256,9 +247,7 @@ function MatchRow({
           className="rounded-full bg-[color:var(--color-primary)] px-4 py-2 text-xs font-bold text-white shadow-sm active:scale-[0.98] disabled:opacity-70"
         >
           {working
-            ? phase === "approve"
-              ? `Approving ${STAKE_TOKEN.symbol}...`
-              : phase === "join"
+            ? phase === "join"
               ? "Joining..."
               : "..."
             : `Join ${formatStableLocal(Number(game.stake_amount), "IDR")}`}

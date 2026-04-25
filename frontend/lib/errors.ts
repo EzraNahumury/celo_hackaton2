@@ -30,21 +30,12 @@ export function humanizeError(err: unknown): FriendlyError {
     };
   }
 
-  if (lc.includes("faucet: wait 24h") || lc.includes("wait 24h")) {
-    return {
-      title: "Faucet cooling down",
-      message: "This wallet already claimed Mock cUSD in the last 24 hours.",
-      hint: "Try again after the cooldown expires.",
-      tone: "info",
-    };
-  }
-
-  // Insufficient balance (gas + token balance).
+  // Insufficient balance (gas + stake — both denominated in CELO).
   if (lc.includes("insufficient funds") || lc.includes("exceeds balance")) {
     return {
       title: "Insufficient balance",
-      message: "You need enough cUSD for the stake and enough CELO for gas.",
-      hint: "Claim Mock cUSD from the in-app faucet, then keep a little CELO for gas.",
+      message: "You need enough CELO for the stake and gas.",
+      hint: "Top up your wallet with CELO.",
       tone: "danger",
     };
   }
@@ -60,8 +51,8 @@ export function humanizeError(err: unknown): FriendlyError {
   ) {
     return {
       title: "RPC is busy",
-      message: "The Celo Sepolia endpoint is rate-limited. Wait a moment and try again.",
-      hint: "If this happens often, switch your wallet's RPC to forno.celo-sepolia.celo-testnet.org.",
+      message: "The Celo RPC endpoint is rate-limited. Wait a moment and try again.",
+      hint: "If this happens often, switch your wallet's RPC to forno.celo.org.",
       tone: "warning",
     };
   }
@@ -139,7 +130,7 @@ export function humanizeError(err: unknown): FriendlyError {
   if (lc.includes("chain mismatch") || lc.includes("wrong chain")) {
     return {
       title: "Wrong network",
-      message: "Your wallet isn't on Celo Sepolia. Switch the network in your wallet.",
+      message: "Your wallet isn't on Celo. Switch the network in your wallet.",
       tone: "warning",
     };
   }

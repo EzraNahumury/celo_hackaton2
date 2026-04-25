@@ -14,19 +14,10 @@ import {
   createWalletClient,
   createPublicClient,
   http,
-  defineChain,
   parseEther,
 } from "viem";
+import { celo } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-
-// ── Chain config ──────────────────────────────────────────────────────────────
-
-const celoSepolia = defineChain({
-  id: 11142220,
-  name: "Celo Sepolia",
-  nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 },
-  rpcUrls: { default: { http: ["https://rpc.ankr.com/celo_sepolia"] } },
-});
 
 // ── ABIs ──────────────────────────────────────────────────────────────────────
 
@@ -105,14 +96,8 @@ async function main() {
   console.log("GambitHub     :", hubAddress);
   console.log("PuzzlePool    :", poolAddress);
 
-  const isProd = process.env.NODE_ENV === "production";
-  const rpcUrl = isProd
-    ? (process.env.CELO_RPC_URL ?? "https://forno.celo.org")
-    : (process.env.CELO_TESTNET_RPC_URL ?? "https://rpc.ankr.com/celo_sepolia");
-
-  const chain = isProd
-    ? defineChain({ id: 42220, name: "Celo", nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 }, rpcUrls: { default: { http: [rpcUrl] } } })
-    : celoSepolia;
+  const rpcUrl = process.env.CELO_RPC_URL ?? "https://forno.celo.org";
+  const chain  = celo;
 
   const publicClient   = createPublicClient({ chain, transport: http(rpcUrl) });
   const deployerWallet = createWalletClient({ account: deployerAccount, chain, transport: http(rpcUrl) });

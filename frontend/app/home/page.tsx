@@ -2,53 +2,26 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
 import { formatUnits } from "viem";
 import { useBalance } from "wagmi";
 import { BottomNav } from "@/components/bottom-nav";
-import { TxExplorerLink, useTxStatus } from "@/components/tx-status";
-import { useToast } from "@/components/toast";
 import { BoltIcon, BotIcon, ClubIcon, PuzzleIcon, TrophyIcon } from "@/components/icons";
-import { useStakeTokenBalance, useStakeTokenFaucet } from "@/hooks/use-stake-token";
+import { useStakeTokenBalance } from "@/hooks/use-stake-token";
 import { useWallet } from "@/hooks/use-connect";
 import { usePlayerStats } from "@/hooks/use-player-stats";
-import { ACTIVE_CHAIN, STAKE_TOKEN, STAKE_TOKEN_CONFIGURED } from "@/lib/contracts";
+import { ACTIVE_CHAIN, STAKE_TOKEN } from "@/lib/contracts";
 import { formatCeloWei, formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
 
 export default function HomePage() {
   const { address, isConnected, connect, isConnecting } = useWallet();
-  const toast = useToast();
-  const { requestFaucet, isPending: faucetPending } = useStakeTokenFaucet();
-  const [faucetHash, setFaucetHash] = useState<`0x${string}` | undefined>();
-  const { status: faucetStatus } = useTxStatus(faucetHash);
 
   const { data: gasBal } = useBalance({
     address,
     query: { enabled: !!address },
   });
-  const isPolling = faucetHash !== undefined && faucetStatus !== "success" && faucetStatus !== "error";
-  const { data: stakeBal } = useStakeTokenBalance(address, isPolling ? 2000 : false);
+  const { data: stakeBal } = useStakeTokenBalance(address);
   const { entry: stats } = usePlayerStats(address);
   const stakeAmount = stakeBal !== undefined ? Number(formatUnits(stakeBal, 18)) : null;
-
-  const onRequestFaucet = async () => {
-    if (!isConnected) {
-      connect();
-      return;
-    }
-    try {
-      const hash = await requestFaucet();
-      setFaucetHash(hash);
-      toast.show({
-        title: "Faucet requested",
-        message: `${STAKE_TOKEN.faucetAmount} ${STAKE_TOKEN.symbol} is being minted to your wallet.`,
-        hint: "Wait for the transaction to confirm, then the balance will refresh.",
-        tone: "info",
-      });
-    } catch (e) {
-      toast.showError(e);
-    }
-  };
 
   return (
     <>
@@ -112,32 +85,7 @@ export default function HomePage() {
                   <BoltIcon size={12} />
                   Gas: {gasBal ? formatCeloWei(gasBal.value, 3) : "-"}
                 </span>
-
-                {STAKE_TOKEN.faucetEnabled && STAKE_TOKEN_CONFIGURED && (
-                  <button
-                    type="button"
-                    onClick={onRequestFaucet}
-                    disabled={faucetPending || faucetStatus === "pending"}
-                    className="rounded-xl bg-white px-4 py-2 text-xs font-bold text-[color:var(--color-primary-dark)] disabled:opacity-70"
-                  >
-                    {faucetPending || faucetStatus === "pending"
-                      ? "Requesting faucet..."
-                      : `Claim ${STAKE_TOKEN.faucetAmount} ${STAKE_TOKEN.symbol}`}
-                  </button>
-                )}
               </div>
-
-              {STAKE_TOKEN.faucetEnabled && (
-                <p className="mt-2 text-[11px] text-white/75">
-                  Sepolia faucet: {STAKE_TOKEN.faucetAmount} {STAKE_TOKEN.symbol} per wallet every 24h
-                </p>
-              )}
-
-              {faucetHash && (
-                <p className="mt-2 text-center">
-                  <TxExplorerLink hash={faucetHash} />
-                </p>
-              )}
             </>
           )}
         </section>

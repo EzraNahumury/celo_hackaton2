@@ -22,6 +22,7 @@ export function useCreateMatch() {
 
   const createMatch = async (opts: {
     timeControlSeconds: number;
+    stakeWei: bigint;
     escrowAddress?: `0x${string}`;
   }) => {
     const escrowAddress = opts.escrowAddress ?? CONTRACTS.matchEscrow;
@@ -35,6 +36,7 @@ export function useCreateMatch() {
       abi: matchEscrowAbi,
       functionName: "createMatch",
       args: [BigInt(opts.timeControlSeconds)],
+      value: opts.stakeWei,
     });
   };
 
@@ -47,6 +49,7 @@ export function useJoinMatch() {
 
   const joinMatch = async (opts: {
     matchId: bigint;
+    stakeWei: bigint;
     escrowAddress?: `0x${string}`;
   }) => {
     const escrowAddress = opts.escrowAddress ?? CONTRACTS.matchEscrow;
@@ -60,6 +63,7 @@ export function useJoinMatch() {
       abi: matchEscrowAbi,
       functionName: "joinMatch",
       args: [opts.matchId],
+      value: opts.stakeWei,
     });
   };
 

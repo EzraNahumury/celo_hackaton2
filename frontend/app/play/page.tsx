@@ -10,7 +10,6 @@ import { useToast } from "@/components/toast";
 import { useWallet } from "@/hooks/use-connect";
 import { useCreateMatch } from "@/hooks/use-match-escrow";
 import { useSession } from "@/hooks/use-session";
-import { useApproveStakeToken } from "@/hooks/use-stake-token";
 import { api } from "@/lib/api";
 import { ACTIVE_CHAIN, CONTRACTS, MATCH_FEE_BPS, STAKE_TOKEN, tcLabelToSeconds } from "@/lib/contracts";
 import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
@@ -29,14 +28,13 @@ const TIME_CONTROLS = [
   { value: "5+3", label: "Rapid", sub: "5 + 3" },
 ] as const;
 
-type Phase = "idle" | "approve" | "deposit";
+type Phase = "idle" | "deposit";
 
 export default function PlayPage() {
   const router = useRouter();
   const publicClient = usePublicClient({ chainId: ACTIVE_CHAIN.id });
   const { address, isConnected, connect, isConnecting } = useWallet();
   const { token, loading: authLoading } = useSession();
-  const { approve, isPending: approving } = useApproveStakeToken();
   const { createMatch, isPending: creating } = useCreateMatch();
   const toast = useToast();
 
@@ -97,19 +95,12 @@ export default function PlayPage() {
         throw new Error("Backend returned an invalid time control");
       }
 
-      setPhase("approve");
-      const approveHash = await approve({
-        tokenAddress: depositTx.tokenAddress,
-        spender: escrowAddress,
-        amountWei: BigInt(depositTx.amount),
-      });
-      setTxHash(approveHash);
-      await waitForReceipt(approveHash);
-
+      // Native CELO stake — no approve step needed; pass stake as msg.value.
       setPhase("deposit");
       const createHash = await createMatch({
         escrowAddress,
         timeControlSeconds,
+        stakeWei: BigInt(depositTx.amount),
       });
       setTxHash(createHash);
       await waitForReceipt(createHash);
@@ -129,16 +120,12 @@ export default function PlayPage() {
   };
 
   const working =
-    busy || approving || creating || isConnecting || authLoading || status === "pending";
+    busy || creating || isConnecting || authLoading || status === "pending";
 
   const btnLabel = !isConnected
     ? "Connect MiniPay"
     : authLoading
     ? "Signing in..."
-    : phase === "approve" && status === "pending"
-    ? "Approval pending..."
-    : phase === "approve" || approving
-    ? `Approving ${STAKE_TOKEN.symbol}...`
     : phase === "deposit" && status === "pending"
     ? "Deposit pending..."
     : phase === "deposit"
@@ -255,9 +242,9 @@ export default function PlayPage() {
           </div>
           <ol className="mt-2 space-y-1 text-[11px] text-[color:var(--color-ink-2)]">
             <li>1. Register match on backend and receive depositTx instructions.</li>
-            <li>2. Approve {STAKE_TOKEN.symbol} for MatchEscrow using the BE amount.</li>
-            <li>3. Call MatchEscrow.createMatch(timeControlSeconds) without msg.value.</li>
-            <li>4. Opponent approves + joins from Lobby, then oracle settles the result.</li>
+            <li>2. Call MatchEscrow.createMatch(timeControlSeconds) with stake as msg.value.</li>
+            <li>3. Opponent joins from Lobby with the same stake as msg.value.</li>
+            <li>4. Oracle settles the result and pays out the winner in CELO.</li>
           </ol>
         </section>
 

@@ -486,7 +486,7 @@ function LiveGame({
             </p>
             <p className="text-lg font-bold text-[color:var(--color-primary)]">
               {isVsMaster && vsMasterPrize !== undefined
-                ? `${formatCusd(vsMasterPrize)} cUSD`
+                ? formatCusd(vsMasterPrize)
                 : formatStableLocal(potential, "IDR")}
             </p>
             <p className="text-[11px] text-[color:var(--color-ink-2)]">
@@ -707,7 +707,7 @@ function ResultModal({
           </h2>
           <p className={`mt-3 text-4xl font-extrabold tracking-tight ${accentClass}`}>
             {amount > 0 ? "+" : amount < 0 ? "−" : ""}
-            {formatCusd(Math.abs(amount))} cUSD
+            {formatCusd(Math.abs(amount))}
           </p>
           <p className="mt-1 text-xs text-[color:var(--color-ink-2)]">
             {reason ? `Ended · ${reason}` : "Settled on Celo"}

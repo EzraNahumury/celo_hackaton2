@@ -120,7 +120,7 @@ router.post("/create", authMiddleware, async (req: Request, res: Response): Prom
         functionName: "createMatch",
         args: [timeControlSeconds],
         // ERC-20 flow: FE must approve tokenAddress first, then call createMatch
-        tokenAddress: process.env.MockCUSD || process.env.CUSD_ADDRESS || null,
+        tokenAddress: process.env.CUSD_ADDRESS || null,
         amount: `${Math.round(parseFloat(stake) * 1e18)}`,
       },
     });
@@ -195,7 +195,7 @@ router.post("/join", authMiddleware, async (req: Request, res: Response): Promis
         functionName: "joinMatch",
         args: [game.onchain_game_id],
         // ERC-20 flow: FE must approve tokenAddress first, then call joinMatch
-        tokenAddress: process.env.MockCUSD || process.env.CUSD_ADDRESS || null,
+        tokenAddress: process.env.CUSD_ADDRESS || null,
         amount: `${Math.round(game.stake_amount * 1e18)}`,
       },
     });

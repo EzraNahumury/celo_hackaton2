@@ -1,21 +1,15 @@
 /**
- * Approve + fund the DailyPuzzlePool with cUSD.
- * Run: npx ts-node scripts/fund-daily-puzzle-pool.ts [amount_cusd]
- * Default: 1 cUSD (covers 100 prizes at 0.01 each)
+ * Approve + fund the DailyPuzzlePool with CELO.
+ * Run: npx ts-node scripts/fund-daily-puzzle-pool.ts [amount_celo]
+ * Default: 1 CELO (covers 100 prizes at 0.01 each)
  */
 
 import dotenv from "dotenv";
 dotenv.config();
 
-import { createWalletClient, createPublicClient, http, defineChain, parseUnits, formatUnits } from "viem";
+import { createWalletClient, createPublicClient, http, parseUnits, formatUnits } from "viem";
+import { celo } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
-
-const celoSepolia = defineChain({
-  id: 11142220,
-  name: "Celo Sepolia",
-  nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 },
-  rpcUrls: { default: { http: ["https://rpc.ankr.com/celo_sepolia"] } },
-});
 
 const ERC20_ABI = [
   { name: "approve",     type: "function", stateMutability: "nonpayable",
@@ -23,8 +17,6 @@ const ERC20_ABI = [
     outputs: [{ type: "bool" }] },
   { name: "balanceOf",   type: "function", stateMutability: "view",
     inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
-  { name: "faucet",      type: "function", stateMutability: "nonpayable",
-    inputs: [], outputs: [] },
 ] as const;
 
 const POOL_ABI = [
@@ -32,7 +24,7 @@ const POOL_ABI = [
     inputs: [{ name: "amount", type: "uint256" }], outputs: [] },
   { name: "poolBalance", type: "function", stateMutability: "view",
     inputs: [], outputs: [{ type: "uint256" }] },
-  // Read the cUSD address the contract was deployed with
+  // Read the CELO address the contract was deployed with
   { name: "cusd",        type: "function", stateMutability: "view",
     inputs: [], outputs: [{ name: "", type: "address" }] },
 ] as const;
@@ -48,20 +40,14 @@ async function main() {
   }
 
   const account = privateKeyToAccount(pk as `0x${string}`);
-  const isProd  = process.env.NODE_ENV === "production";
-  const rpcUrl  = isProd
-    ? (process.env.CELO_RPC_URL ?? "https://forno.celo.org")
-    : (process.env.CELO_TESTNET_RPC_URL ?? "https://rpc.ankr.com/celo_sepolia");
-  const chain   = isProd
-    ? defineChain({ id: 42220, name: "Celo", nativeCurrency: { name: "CELO", symbol: "CELO", decimals: 18 }, rpcUrls: { default: { http: [rpcUrl] } } })
-    : celoSepolia;
+  const rpcUrl  = process.env.CELO_RPC_URL ?? "https://forno.celo.org";
 
-  const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
-  const walletClient = createWalletClient({ account, chain, transport: http(rpcUrl) });
+  const publicClient = createPublicClient({ chain: celo, transport: http(rpcUrl) });
+  const walletClient = createWalletClient({ account, chain: celo, transport: http(rpcUrl) });
 
   const amountWei = parseUnits(String(amountCusd), 18);
 
-  // Read the cUSD address the contract was deployed with
+  // Read the CELO address the contract was deployed with
   const cusdAddr = await publicClient.readContract({
     address: poolAddr,
     abi: POOL_ABI,
@@ -70,36 +56,24 @@ async function main() {
 
   console.log("Wallet      :", account.address);
   console.log("Pool        :", poolAddr);
-  console.log("cUSD (contract):", cusdAddr);
-  console.log("Fund amount :", amountCusd, "cUSD");
+  console.log("CELO (contract):", cusdAddr);
+  console.log("Fund amount :", amountCusd, "CELO");
 
   // Current balances
   const walletBal = await publicClient.readContract({ address: cusdAddr, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address] });
   const poolBal   = await publicClient.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "poolBalance" });
 
-  console.log("\nWallet cUSD balance :", formatUnits(walletBal, 18));
-  console.log("Pool cUSD balance   :", formatUnits(poolBal, 18));
+  console.log("\nWallet CELO balance :", formatUnits(walletBal, 18));
+  console.log("Pool CELO balance   :", formatUnits(poolBal, 18));
 
   if (walletBal < amountWei) {
-    console.log(`\nWallet balance insufficient (${formatUnits(walletBal, 18)}). Calling faucet()...`);
-    const faucetTx = await walletClient.writeContract({
-      address: cusdAddr,
-      abi: ERC20_ABI,
-      functionName: "faucet",
-      args: [],
-    });
-    await publicClient.waitForTransactionReceipt({ hash: faucetTx });
-    console.log("  faucet tx:", faucetTx, "✓");
-    const newBal = await publicClient.readContract({ address: cusdAddr, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address] });
-    console.log("  New wallet balance:", formatUnits(newBal, 18), "cUSD");
-    if (newBal < amountWei) {
-      console.error(`✗ Still insufficient after faucet. Need ${amountCusd} cUSD, have ${formatUnits(newBal, 18)}`);
-      process.exit(1);
-    }
+    console.error(`\n✗ Wallet CELO balance insufficient. Need ${amountCusd}, have ${formatUnits(walletBal, 18)}.`);
+    console.error("  Top up the wallet with real CELO on Celo Mainnet first.");
+    process.exit(1);
   }
 
   // 1. Approve
-  console.log("\nStep 1: Approving pool to spend cUSD...");
+  console.log("\nStep 1: Approving pool to spend CELO...");
   const approveTx = await walletClient.writeContract({
     address: cusdAddr,
     abi: ERC20_ABI,
@@ -122,8 +96,8 @@ async function main() {
 
   // Verify
   const newPoolBal = await publicClient.readContract({ address: poolAddr, abi: POOL_ABI, functionName: "poolBalance" });
-  console.log("\n✓ Pool balance now:", formatUnits(newPoolBal, 18), "cUSD");
-  console.log("  Covers", Math.floor(Number(formatUnits(newPoolBal, 18)) / 0.01), "prizes at 0.01 cUSD each");
+  console.log("\n✓ Pool balance now:", formatUnits(newPoolBal, 18), "CELO");
+  console.log("  Covers", Math.floor(Number(formatUnits(newPoolBal, 18)) / 0.01), "prizes at 0.01 CELO each");
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

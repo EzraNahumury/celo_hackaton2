@@ -296,7 +296,7 @@ export default function PuzzlePage() {
   const statusText =
     phase === "wrong"      ? "Wrong move — try again"
     : phase === "submitting" ? "Submitting…"
-    : result?.correct      ? result.prizeEarned ? `+$${result.prizeAmountCusd} cUSD!` : "Solved!"
+    : result?.correct      ? result.prizeEarned ? `+${result.prizeAmountCusd} CELO!` : "Solved!"
     : result               ? "Wrong solution"
     : started              ? fmtTime(elapsed)
     : puzzle?.to_move === "black" ? "Black to move" : "White to move";
@@ -321,7 +321,7 @@ export default function PuzzlePage() {
         </header>
         <section className="mt-6 text-center fade-in-up">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/80">Prize per correct answer</p>
-          <h1 className="mt-1 text-4xl font-extrabold tracking-tight">$0.01 cUSD</h1>
+          <h1 className="mt-1 text-4xl font-extrabold tracking-tight">0.01 CELO</h1>
           <p className="mt-1 text-[11px] text-white/80">{prizeLabel}</p>
         </section>
       </div>
@@ -461,7 +461,7 @@ export default function PuzzlePage() {
             <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
               {result.correct
                 ? result.prizeEarned
-                  ? `Solved! +$${result.prizeAmountCusd} cUSD sent to your wallet`
+                  ? `Solved! +${result.prizeAmountCusd} CELO sent to your wallet`
                   : usedHint
                   ? "Solved — hint used, no prize"
                   : "Solved! (No more prizes today)"
@@ -529,7 +529,7 @@ export default function PuzzlePage() {
             <h2 className="text-base font-bold text-[color:var(--color-ink-0)]">Use a hint?</h2>
             <p className="mt-2 text-sm text-[color:var(--color-ink-2)]">
               Using a hint will{" "}
-              <strong className="text-red-600">disqualify you from the $0.01 cUSD prize</strong>{" "}
+              <strong className="text-red-600">disqualify you from the 0.01 CELO prize</strong>{" "}
               for this puzzle.
             </p>
             <div className="mt-4 flex gap-3">

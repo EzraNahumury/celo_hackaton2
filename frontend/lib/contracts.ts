@@ -1,24 +1,5 @@
 import { defineChain } from "viem";
 
-export const celoSepolia = defineChain({
-  id: 11142220,
-  name: "Celo Sepolia",
-  nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
-  rpcUrls: {
-    default: {
-      http: [
-        "https://forno.celo-sepolia.celo-testnet.org",
-        "https://celo-sepolia.drpc.org",
-        "https://rpc.ankr.com/celo_sepolia",
-      ],
-    },
-  },
-  blockExplorers: {
-    default: { name: "Celoscan", url: "https://celo-sepolia.blockscout.com" },
-  },
-  testnet: true,
-});
-
 export const celoMainnet = defineChain({
   id: 42220,
   name: "Celo",
@@ -31,10 +12,7 @@ export const celoMainnet = defineChain({
   },
 });
 
-export const ACTIVE_CHAIN =
-  process.env.NEXT_PUBLIC_CELO_NETWORK === "mainnet" ? celoMainnet : celoSepolia;
-
-const DEFAULT_TESTNET_CUSD = "0x1738d9cd003e1e1e8F648dBAE9E85ED116810C2F";
+export const ACTIVE_CHAIN = celoMainnet;
 
 export const CONTRACTS = {
   hub: (process.env.NEXT_PUBLIC_GAMBIT_HUB ?? "") as `0x${string}`,
@@ -48,15 +26,12 @@ export const CONTRACTS_CONFIGURED = Object.values(CONTRACTS).every(
   (a) => a && a.length === 42 && a !== "0x",
 );
 
+// Stake token = native CELO via its ERC20 wrapper interface (Celo dual-token).
+// Reading balanceOf at this address returns the wallet's native CELO balance.
 export const STAKE_TOKEN = {
-  address: (
-    process.env.NEXT_PUBLIC_CUSD_ADDRESS ??
-    (ACTIVE_CHAIN.id === celoSepolia.id ? DEFAULT_TESTNET_CUSD : "")
-  ) as `0x${string}`,
-  symbol: "cUSD",
-  name: ACTIVE_CHAIN.id === celoSepolia.id ? "Mock Celo Dollar" : "Celo Dollar",
-  faucetEnabled: ACTIVE_CHAIN.id === celoSepolia.id,
-  faucetAmount: 100,
+  address: (process.env.NEXT_PUBLIC_CUSD_ADDRESS ?? "") as `0x${string}`,
+  symbol: "CELO",
+  name: "Celo",
 } as const;
 
 export const STAKE_TOKEN_CONFIGURED =

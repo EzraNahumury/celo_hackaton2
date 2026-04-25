@@ -138,7 +138,7 @@ export default function ClubPage() {
   const joinButtonLabel = !isConnected
     ? "Connect MiniPay"
     : joinPhase === "approve"
-      ? "Approving cUSD..."
+      ? "Approving CELO..."
       : joinPhase === "approve_wait"
         ? "Waiting for confirmation..."
         : joinPhase === "write" || joining || joinStatus === "pending"
@@ -199,7 +199,7 @@ export default function ClubPage() {
                     onClick={() => setBuyIn(b)}
                     className={`rounded-2xl border-2 px-3 py-4 text-left ${active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-50)]" : "border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)]"}`}
                   >
-                    <p className="text-lg font-bold text-[color:var(--color-ink-0)]">{b.toFixed(2)} cUSD</p>
+                    <p className="text-lg font-bold text-[color:var(--color-ink-0)]">{b.toFixed(2)} CELO</p>
                     <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(b, "IDR")}</p>
                   </button>
                 );
@@ -261,7 +261,7 @@ export default function ClubPage() {
               placeholder="1.00"
               className="mt-2 w-full rounded-2xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
             />
-            <p className="mt-1 text-[11px] text-[color:var(--color-ink-3)]">cUSD</p>
+            <p className="mt-1 text-[11px] text-[color:var(--color-ink-3)]">CELO</p>
 
             <button
               type="button"

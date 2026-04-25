@@ -9,9 +9,6 @@ export const env = {
   SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_KEY!,
 
   CELO_RPC_URL: process.env.CELO_RPC_URL || "https://forno.celo.org",
-  CELO_TESTNET_RPC_URL:
-    process.env.CELO_TESTNET_RPC_URL ||
-    "https://alfajores-forno.celo-testnet.org",
   SERVER_WALLET_PRIVATE_KEY: process.env.SERVER_WALLET_PRIVATE_KEY as
     | `0x${string}`
     | undefined,
@@ -34,9 +31,8 @@ export const env = {
   // Legacy alias kept for backwards-compat during migration
   CHESS_ESCROW_ADDRESS: (process.env.MATCH_ESCROW_ADDRESS ||
     process.env.CHESS_ESCROW_ADDRESS) as `0x${string}` | undefined,
-  // ERC-20 token used for stakes (MockCUSD on testnet, cUSD on mainnet)
-  CUSD_ADDRESS: (process.env.MockCUSD ||
-    process.env.CUSD_ADDRESS) as `0x${string}` | undefined,
+  // ERC-20 token used for stakes — real cUSD on Celo Mainnet
+  CUSD_ADDRESS: process.env.CUSD_ADDRESS as `0x${string}` | undefined,
 
   JWT_SECRET: process.env.JWT_SECRET || "dev-secret-change-me-in-production",
 

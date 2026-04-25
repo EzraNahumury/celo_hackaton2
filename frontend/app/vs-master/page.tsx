@@ -17,7 +17,7 @@ const DIFFICULTIES = [
     piece: "♟",
     description: "Random moves — great for beginners",
     prize: "0.01",
-    prizeLabel: "$0.01 cUSD",
+    prizeLabel: "0.01 CELO",
     activeBorder: "border-emerald-500",
     activeBg: "bg-emerald-50",
     activeText: "text-emerald-700",
@@ -31,7 +31,7 @@ const DIFFICULTIES = [
     piece: "♞",
     description: "Tactical awareness — a real challenge",
     prize: "0.05",
-    prizeLabel: "$0.05 cUSD",
+    prizeLabel: "0.05 CELO",
     activeBorder: "border-amber-500",
     activeBg: "bg-amber-50",
     activeText: "text-amber-700",
@@ -45,7 +45,7 @@ const DIFFICULTIES = [
     piece: "♛",
     description: "Expert tactics — maximum reward",
     prize: "0.10",
-    prizeLabel: "$0.10 cUSD",
+    prizeLabel: "0.10 CELO",
     activeBorder: "border-red-500",
     activeBg: "bg-red-50",
     activeText: "text-red-700",
@@ -145,7 +145,7 @@ export default function VsMasterPage() {
           </p>
           <h1 className="mt-1 text-4xl font-extrabold tracking-tight">Beat the Bot</h1>
           <p className="mt-1 text-sm text-white/80">
-            Win vs the AI, earn cUSD — claimed instantly on-chain
+            Win vs the AI, earn CELO — claimed instantly on-chain
           </p>
           {selected && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-white/40 bg-white/10 px-4 py-2 text-sm font-bold backdrop-blur-sm">

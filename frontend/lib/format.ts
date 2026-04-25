@@ -71,8 +71,10 @@ export function formatCelo(celo: number, decimals = 2): string {
   return `${celo.toFixed(decimals)} CELO`;
 }
 
+// Stake/prize amounts now denominated in native CELO. Keep function name
+// `formatCusd` for backwards-compat across components.
 export function formatCusd(cusd: number, decimals = 2): string {
-  return `${cusd.toFixed(decimals)} cUSD`;
+  return `${cusd.toFixed(decimals)} CELO`;
 }
 
 export function formatCeloWei(wei: bigint, decimals = 2): string {
@@ -80,7 +82,7 @@ export function formatCeloWei(wei: bigint, decimals = 2): string {
 }
 
 export function formatCusdWei(wei: bigint, decimals = 2): string {
-  return `${Number(formatUnits(wei, 18)).toFixed(decimals)} cUSD`;
+  return `${Number(formatUnits(wei, 18)).toFixed(decimals)} CELO`;
 }
 
 export function weiToLocal(wei: bigint, currency: CurrencyCode = "IDR"): string {

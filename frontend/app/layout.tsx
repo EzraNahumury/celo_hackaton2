@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: "Gambit Chess",
-  description: "Main catur, menang cUSD. Settle langsung ke MiniPay.",
+  description: "Main catur, menang CELO. Settle langsung ke MiniPay.",
 };
 
 export const viewport: Viewport = {

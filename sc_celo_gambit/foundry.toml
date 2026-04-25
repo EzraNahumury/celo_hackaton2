@@ -10,7 +10,7 @@ remappings = [
 ]
 
 [rpc_endpoints]
-celo_sepolia = "https://rpc.ankr.com/celo_sepolia"
+celo = "https://forno.celo.org"
 
 [etherscan]
-celo_sepolia = { key = "${CELOSCAN_API_KEY}", url = "https://api-alfajores.celoscan.io/api" }
+celo = { key = "${CELOSCAN_API_KEY}", chain = 42220, url = "https://api.celoscan.io/api" }

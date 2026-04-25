@@ -201,7 +201,7 @@ export default function ProfilePage() {
                 value={stats ? String(stats.losses) : statsLoading ? "…" : "—"}
               />
               <Stat
-                label="Earned cUSD"
+                label="Earned CELO"
                 value={
                   stats ? `${Number(stats.totalEarned).toFixed(2)}` : statsLoading ? "…" : "—"
                 }

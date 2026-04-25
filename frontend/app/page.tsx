@@ -24,8 +24,8 @@ const FEATURES: Feature[] = [
     piece: "♞",
     hint: "01",
     title: "1v1 Match",
-    desc: "Play other players with small cUSD stakes. Win: pot minus 3% fee to your wallet.",
-    stat: "Stake · 0.50 - 2.00 cUSD",
+    desc: "Play other players with small CELO stakes. Win: pot minus 3% fee to your wallet.",
+    stat: "Stake · 0.50 - 2.00 CELO",
     href: "/play",
     tint: "#60a5fa",
   },
@@ -357,12 +357,11 @@ function CommunityStrip() {
       <p className="flex-1 text-[11px] text-white/75">
         {online === null ? (
           <>
-            Play & settle on <span className="font-bold text-white">Celo Sepolia</span>
+            Play & settle on <span className="font-bold text-white">Celo</span>
           </>
         ) : (
           <>
-            <span className="font-bold text-white">{online} players</span> online on{" "}
-            Celo Sepolia
+            <span className="font-bold text-white">{online} players</span> online on Celo
           </>
         )}
       </p>
