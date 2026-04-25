@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { formatUnits } from "viem";
 import { usePublicClient } from "wagmi";
 import { clubVaultAbi } from "@/lib/abis/club-vault";
-import { ACTIVE_CHAIN, CONTRACTS, CONTRACTS_CONFIGURED } from "@/lib/contracts";
+import { ACTIVE_CHAIN, CONTRACTS, CONTRACTS_CONFIGURED, CONTRACTS_DEPLOY_BLOCK } from "@/lib/contracts";
 import type { WalletAddress } from "@/types/api";
 
 export type ClubActivityKind = "created" | "joined" | "won" | "placed2nd";
@@ -53,14 +53,14 @@ export function useClubHistory(address: WalletAddress | undefined) {
             address: contractAddress,
             event: CLUB_CREATED_EVENT as Parameters<typeof publicClient.getLogs>[0]["event"],
             args: { creator: address },
-            fromBlock: 0n,
+            fromBlock: CONTRACTS_DEPLOY_BLOCK,
             toBlock: "latest",
           }),
           publicClient.getLogs({
             address: contractAddress,
             event: MEMBER_JOINED_EVENT as Parameters<typeof publicClient.getLogs>[0]["event"],
             args: { member: address },
-            fromBlock: 0n,
+            fromBlock: CONTRACTS_DEPLOY_BLOCK,
             toBlock: "latest",
           }),
         ]);
@@ -97,7 +97,7 @@ export function useClubHistory(address: WalletAddress | undefined) {
                 address: contractAddress,
                 event: CLUB_SETTLED_EVENT as Parameters<typeof publicClient.getLogs>[0]["event"],
                 args: { clubId },
-                fromBlock: 0n,
+                fromBlock: CONTRACTS_DEPLOY_BLOCK,
                 toBlock: "latest",
               }),
             ),

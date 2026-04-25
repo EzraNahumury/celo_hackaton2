@@ -5,12 +5,23 @@ export const celoMainnet = defineChain({
   name: "Celo",
   nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://forno.celo.org"] },
+    default: {
+      http: [
+        "https://forno.celo.org",
+        "https://rpc.ankr.com/celo",
+        "https://celo.drpc.org",
+      ],
+    },
   },
   blockExplorers: {
     default: { name: "Celoscan", url: "https://celoscan.io" },
   },
 });
+
+// Block at which our contracts were deployed on Celo Mainnet. Used as
+// `fromBlock` for getLogs queries — public RPC nodes reject `fromBlock: 0`
+// since Celo has 65M+ blocks.
+export const CONTRACTS_DEPLOY_BLOCK = 65238213n;
 
 export const ACTIVE_CHAIN = celoMainnet;
 
