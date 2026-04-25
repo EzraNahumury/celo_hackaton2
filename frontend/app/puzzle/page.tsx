@@ -15,6 +15,7 @@ import type { NextPuzzle, PuzzleStatus, SubmitPuzzleResponse } from "@/types/api
 type Phase =
   | "idle"        // wallet not connected
   | "loading"     // fetching puzzle
+  | "exhausted"   // all daily prizes claimed
   | "playing"     // player's turn
   | "wrong"       // brief red flash after wrong move
   | "animating"   // opponent response animating
@@ -85,9 +86,13 @@ export default function PuzzlePage() {
         api.getNextPuzzle(),
         api.getPuzzleStatus(),
       ]);
+      setStatus(s);
+      if (s.prizesRemaining === 0) {
+        setPhase("exhausted");
+        return;
+      }
       setPuzzle(p);
       puzzleRef.current = p;
-      setStatus(s);
       setBoardFen(p.fen);
       prevFenRef.current = p.fen;
       setPhase("playing");
@@ -353,6 +358,29 @@ export default function PuzzlePage() {
               </div>
             )}
 
+            {/* Exhausted — all prizes claimed today */}
+            {phase === "exhausted" && (
+              <div className="aspect-square flex flex-col items-center justify-center gap-4 bg-[color:var(--color-surface)] px-6 text-center">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[color:var(--color-primary-50)] text-[color:var(--color-primary)]">
+                  <BoltIcon size={30} />
+                </span>
+                <div>
+                  <p className="text-base font-extrabold text-[color:var(--color-ink-0)]">
+                    All prizes claimed!
+                  </p>
+                  <p className="mt-1 text-sm text-[color:var(--color-ink-2)]">
+                    You&apos;ve earned all 3 prizes today.{"\n"}Come back tomorrow at 00:00 UTC.
+                  </p>
+                </div>
+                <Link
+                  href="/home"
+                  className="rounded-2xl bg-[color:var(--color-primary)] px-6 py-3 text-sm font-bold text-white shadow-[var(--shadow-glow-primary)]"
+                >
+                  Go Home
+                </Link>
+              </div>
+            )}
+
             {/* Error */}
             {phase === "error" && (
               <div className="aspect-square flex flex-col items-center justify-center gap-4 bg-[color:var(--color-surface)]">
@@ -368,7 +396,7 @@ export default function PuzzlePage() {
             )}
 
             {/* Board */}
-            {boardFen && phase !== "idle" && phase !== "loading" && phase !== "error" && (
+            {boardFen && phase !== "idle" && phase !== "loading" && phase !== "error" && phase !== "exhausted" && (
               <Chessboard
                 fen={boardFen}
                 orientation={playerColor === "b" ? "black" : "white"}
@@ -452,13 +480,15 @@ export default function PuzzlePage() {
               </p>
             )}
             <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => loadPuzzleRef.current()}
-                className="flex-1 rounded-2xl bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white shadow-[var(--shadow-glow-primary)]"
-              >
-                Next Puzzle
-              </button>
+              {result.prizesRemaining > 0 && (
+                <button
+                  type="button"
+                  onClick={() => loadPuzzleRef.current()}
+                  className="flex-1 rounded-2xl bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white shadow-[var(--shadow-glow-primary)]"
+                >
+                  Next Puzzle
+                </button>
+              )}
               <Link
                 href="/home"
                 className="flex-1 rounded-2xl border border-[color:var(--color-border)] py-3 text-center text-sm font-bold text-[color:var(--color-ink-1)]"

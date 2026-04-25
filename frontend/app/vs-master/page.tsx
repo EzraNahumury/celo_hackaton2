@@ -171,47 +171,34 @@ export default function VsMasterPage() {
                   key={d.level}
                   type="button"
                   onClick={() => setSelectedLevel(d.level)}
-                  className={`flex items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all active:scale-[0.98] ${
+                  className={`flex items-center gap-3 rounded-2xl border-2 p-4 text-left transition-all active:scale-[0.98] ${
                     isActive
                       ? `${d.activeBorder} ${d.activeBg}`
                       : "border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)] hover:border-[color:var(--color-primary-200)]"
                   }`}
                 >
-                  <span className="text-4xl leading-none flex-shrink-0">{d.piece}</span>
+                  {/* Icon */}
+                  <span className="flex-shrink-0 text-4xl leading-none w-10 text-center">{d.piece}</span>
 
+                  {/* Content */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p
-                        className={`text-base font-bold ${
-                          isActive ? d.activeText : "text-[color:var(--color-ink-0)]"
-                        }`}
-                      >
-                        {d.name}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <p className={`text-sm font-bold ${isActive ? d.activeText : "text-[color:var(--color-ink-0)]"}`}>
+                          {d.name}
+                        </p>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isActive ? d.activeBadge : "bg-[color:var(--color-sky-100)] text-[color:var(--color-ink-2)]"}`}>
+                          {d.label}
+                        </span>
+                      </div>
+                      <p className={`flex-shrink-0 text-base font-extrabold tabular-nums ${isActive ? d.activeAmount : "text-[color:var(--color-ink-2)]"}`}>
+                        {d.prizeLabel}
                       </p>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                          isActive
-                            ? d.activeBadge
-                            : "bg-[color:var(--color-sky-100)] text-[color:var(--color-ink-2)]"
-                        }`}
-                      >
-                        {d.label}
-                      </span>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-[color:var(--color-ink-2)]">
-                      {d.description}
-                    </p>
-                  </div>
-
-                  <div className="flex-shrink-0 text-right">
-                    <p
-                      className={`text-xl font-extrabold tabular-nums ${
-                        isActive ? d.activeAmount : "text-[color:var(--color-ink-2)]"
-                      }`}
-                    >
-                      {d.prizeLabel}
-                    </p>
-                    <p className="text-[10px] text-[color:var(--color-ink-3)]">prize on win</p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <p className="text-[11px] text-[color:var(--color-ink-2)]">{d.description}</p>
+                      <p className="flex-shrink-0 text-[10px] text-[color:var(--color-ink-3)] ml-2">prize on win</p>
+                    </div>
                   </div>
                 </button>
               );

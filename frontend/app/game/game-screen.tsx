@@ -556,7 +556,7 @@ function LiveGame({
               : result === "win" ? potential : result === "lose" ? -stake : 0
           }
           onPlayAgain={() => router.push(isVsMaster ? "/vs-master" : "/play")}
-          onClose={() => setResult(null)}
+          onClose={() => router.push("/home")}
           claimStatus={isVsMaster ? claimStatus : undefined}
         />
       )}
