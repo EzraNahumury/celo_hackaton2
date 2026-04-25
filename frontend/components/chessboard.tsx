@@ -196,7 +196,7 @@ export function Chessboard({
 
                 {c === 0 && (
                   <span
-                    className="absolute left-0.5 top-0.5 text-[9px] font-bold leading-none"
+                    className={`absolute text-[9px] font-bold leading-none ${r === 0 ? "left-2 top-2" : "left-0.5 top-0.5"}`}
                     style={{ color: dark ? "#dce9f8" : "#3d6db5" }}
                   >
                     {orientation === "white" ? 8 - r : r + 1}
@@ -204,7 +204,7 @@ export function Chessboard({
                 )}
                 {r === 7 && (
                   <span
-                    className="absolute right-0.5 bottom-0.5 text-[9px] font-bold leading-none"
+                    className={`absolute text-[9px] font-bold leading-none ${c === 7 ? "right-2 bottom-2" : "right-0.5 bottom-0.5"}`}
                     style={{ color: dark ? "#dce9f8" : "#3d6db5" }}
                   >
                     {String.fromCharCode(97 + (orientation === "white" ? c : 7 - c))}

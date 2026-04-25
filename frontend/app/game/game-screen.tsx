@@ -430,13 +430,8 @@ function LiveGame({
             ((orientation === "white" && turn === "b") ||
               (orientation === "black" && turn === "w"))
           }
+          thinking={botThinking}
         />
-        {botThinking && (
-          <div className="mt-1 flex items-center gap-1.5 px-1 text-[11px] text-[color:var(--color-ink-2)]">
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-[color:var(--color-primary)]/30 border-t-[color:var(--color-primary)]" />
-            Bot is thinking…
-          </div>
-        )}
 
         <div className="mt-3">
           <Chessboard
@@ -549,11 +544,13 @@ function PlayerBar({
   name,
   time,
   active,
+  thinking,
 }: {
   color: "white" | "black";
   name: string;
   time: number;
   active: boolean;
+  thinking?: boolean;
 }) {
   const low = time < 30;
   return (
@@ -576,7 +573,12 @@ function PlayerBar({
           {color === "white" ? "♙" : "♟"}
         </span>
         <div>
-          <p className="text-xs font-semibold leading-none text-[color:var(--color-ink-0)]">{name}</p>
+          <p className="flex items-center gap-1.5 text-xs font-semibold leading-none text-[color:var(--color-ink-0)]">
+            {name}
+            {thinking && (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[color:var(--color-primary)]/30 border-t-[color:var(--color-primary)]" />
+            )}
+          </p>
           <p className="mt-1 text-[10px] text-[color:var(--color-ink-2)]">
             {color === "white" ? "White" : "Black"}
           </p>
