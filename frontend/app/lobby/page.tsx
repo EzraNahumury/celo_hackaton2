@@ -12,7 +12,7 @@ import { useJoinMatch } from "@/hooks/use-match-escrow";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
 import { ACTIVE_CHAIN, CONTRACTS, STAKE_TOKEN } from "@/lib/contracts";
-import { formatStableLocal, truncateAddress } from "@/lib/format";
+import { formatCusd, truncateAddress } from "@/lib/format";
 import type { LobbyEntry } from "@/types/api";
 
 type Phase = "idle" | "join";
@@ -250,7 +250,7 @@ function MatchRow({
             ? phase === "join"
               ? "Joining..."
               : "..."
-            : `Join ${formatStableLocal(Number(game.stake_amount), "USD")}`}
+            : `Join ${formatCusd(Number(game.stake_amount))}`}
         </button>
       )}
     </li>

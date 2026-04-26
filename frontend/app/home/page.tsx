@@ -12,7 +12,7 @@ import { usePlayerHistory } from "@/hooks/use-player-history";
 import { usePlayerStats } from "@/hooks/use-player-stats";
 import { usePuzzleHistory } from "@/hooks/use-puzzle-history";
 import { ACTIVE_CHAIN, STAKE_TOKEN } from "@/lib/contracts";
-import { formatCeloWei, formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
+import { formatCeloWei, formatCusd, truncateAddress } from "@/lib/format";
 import type { PlayerGameRow, PlayerTransactionRow, PuzzleSessionRow } from "@/types/api";
 
 export default function HomePage() {
@@ -65,7 +65,7 @@ export default function HomePage() {
             <h1 className="text-4xl font-extrabold tracking-tight">{stakeAmount !== null ? formatCusd(stakeAmount, 2) : "-"}</h1>
           </div>
           <p className="mt-1 text-[11px] text-white/75">
-            {stakeAmount !== null ? `~ ${formatStableLocal(stakeAmount, "USD")}` : `${STAKE_TOKEN.name} - ${ACTIVE_CHAIN.name}`}
+            {STAKE_TOKEN.name} · {ACTIVE_CHAIN.name}
           </p>
 
           {!isConnected ? (
@@ -199,7 +199,7 @@ function RecentMatchRow({
       </div>
       {net !== 0 && (
         <p className={`text-xs font-bold ${net > 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-danger)]"}`}>
-          {net > 0 ? "+" : "−"}{formatStableLocal(Math.abs(net), "USD")}
+          {net > 0 ? "+" : "−"}{formatCusd(Math.abs(net))}
         </p>
       )}
     </div>
@@ -233,7 +233,7 @@ function RecentPuzzleRow({ session }: { session: PuzzleSessionRow }) {
       </div>
       {prize_paid && (
         <p className="text-xs font-bold text-[color:var(--color-success)]">
-          +{formatStableLocal(0.01, "USD")}
+          +{formatCusd(0.01)}
         </p>
       )}
     </div>

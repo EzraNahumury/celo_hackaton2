@@ -17,7 +17,7 @@ import {
 } from "@/hooks/use-club-vault";
 import { useMyClubs } from "@/hooks/use-my-clubs";
 import { CLUB_FEE_BPS, CLUB_FIRST_BPS, CLUB_ROLL_BPS, CLUB_SECOND_BPS } from "@/lib/contracts";
-import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
+import { formatCusd, truncateAddress } from "@/lib/format";
 import { clubVaultAbi } from "@/lib/abis/club-vault";
 
 const BUY_IN_OPTIONS = [0.5, 1, 2] as const;
@@ -217,7 +217,6 @@ export default function ClubPage() {
                     className={`rounded-2xl border-2 px-3 py-4 text-left ${active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-50)]" : "border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)]"}`}
                   >
                     <p className="text-lg font-bold text-[color:var(--color-ink-0)]">{b.toFixed(2)} CELO</p>
-                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(b, "USD")}</p>
                   </button>
                 );
               })}
@@ -253,7 +252,7 @@ export default function ClubPage() {
               disabled={creating || isConnecting || createStatus === "pending"}
               className="mt-5 w-full rounded-2xl bg-[color:var(--color-primary)] py-4 text-base font-bold text-white shadow-[var(--shadow-glow-primary)] disabled:opacity-70"
             >
-              {creating || createStatus === "pending" ? "Submitting..." : !isConnected ? "Connect MiniPay" : `Create Club · ${formatStableLocal(buyIn, "USD")}`}
+              {creating || createStatus === "pending" ? "Submitting..." : !isConnected ? "Connect MiniPay" : `Create Club · ${formatCusd(buyIn)}`}
             </button>
             {createHash && <p className="mt-3 text-center"><TxExplorerLink hash={createHash} /></p>}
           </section>
@@ -396,12 +395,10 @@ export default function ClubPage() {
                   <div className="rounded-2xl bg-[color:var(--color-surface-soft)] p-3">
                     <p className="text-[10px] uppercase tracking-wide text-[color:var(--color-ink-3)]">Pot</p>
                     <p className="text-base font-bold text-[color:var(--color-success)]">{formatCusd(clubPotCusd)}</p>
-                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubPotCusd, "USD")}</p>
                   </div>
                   <div className="rounded-2xl bg-[color:var(--color-surface-soft)] p-3">
                     <p className="text-[10px] uppercase tracking-wide text-[color:var(--color-ink-3)]">Buy-in</p>
                     <p className="text-base font-bold text-[color:var(--color-ink-0)]">{formatCusd(clubBuyInCusd)}</p>
-                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubBuyInCusd, "USD")}</p>
                   </div>
                 </div>
 

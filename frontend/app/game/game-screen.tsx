@@ -12,7 +12,7 @@ import { useSession } from "@/hooks/use-session";
 import { useClaimDailyPuzzle } from "@/hooks/use-daily-puzzle-pool";
 import { api } from "@/lib/api";
 import { getAuthToken } from "@/lib/auth";
-import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
+import { formatCusd, truncateAddress } from "@/lib/format";
 import { connectGameWs, type GameSocket } from "@/lib/ws";
 import type { BotWinClaimData, GameResult, GameState, WsServerEvent } from "@/types/api";
 
@@ -487,7 +487,7 @@ function LiveGame({
             <p className="text-lg font-bold text-[color:var(--color-primary)]">
               {isVsMaster && vsMasterPrize !== undefined
                 ? formatCusd(vsMasterPrize)
-                : formatStableLocal(potential, "USD")}
+                : formatCusd(potential)}
             </p>
             <p className="text-[11px] text-[color:var(--color-ink-2)]">
               {isVsMaster ? "From DailyPuzzlePool · free to play" : `Stake ${formatCusd(stake)} · in escrow`}
@@ -896,7 +896,7 @@ function OfflineBotScreen({ stake, tc }: { stake: number; tc: string }) {
               If you win
             </p>
             <p className="text-lg font-bold text-[color:var(--color-primary)]">
-              {formatStableLocal(potential, "USD")}
+              {formatCusd(potential)}
             </p>
             <p className="text-[11px] text-[color:var(--color-ink-2)]">Stake {formatCusd(stake)} · preview</p>
           </div>

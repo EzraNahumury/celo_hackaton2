@@ -12,7 +12,7 @@ import { useCreateMatch } from "@/hooks/use-match-escrow";
 import { useSession } from "@/hooks/use-session";
 import { api } from "@/lib/api";
 import { ACTIVE_CHAIN, CONTRACTS, MATCH_FEE_BPS, STAKE_TOKEN, tcLabelToSeconds } from "@/lib/contracts";
-import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
+import { formatCusd, truncateAddress } from "@/lib/format";
 import type { StakeAmount, TimeControl } from "@/types/api";
 
 const STAKES = [
@@ -132,7 +132,7 @@ export default function PlayPage() {
     ? "Confirm deposit in wallet..."
     : busy || creating
     ? "Creating match..."
-    : `Create match - ${formatStableLocal(stake, "USD")}`;
+    : `Create match - ${formatCusd(stake)}`;
 
   return (
     <main className="flex-1">
@@ -159,7 +159,7 @@ export default function PlayPage() {
             If you win
           </p>
           <h1 className="mt-1 text-5xl font-extrabold tracking-tight">
-            {formatStableLocal(potential, "USD")}
+            {formatCusd(potential)}
           </h1>
           <p className="mt-1 text-xs text-white/80">
             Pot {formatCusd(pot)} - {(MATCH_FEE_BPS / 100).toFixed(0)}% fee
@@ -197,7 +197,7 @@ export default function PlayPage() {
                     {s.label} {STAKE_TOKEN.symbol}
                   </p>
                   <p className="text-[11px] text-[color:var(--color-ink-2)]">
-                    {formatStableLocal(s.value, "USD")}
+                    {formatCusd(s.value)}
                   </p>
                 </button>
               );

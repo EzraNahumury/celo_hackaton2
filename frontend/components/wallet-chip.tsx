@@ -2,7 +2,7 @@
 
 import { useBalance } from "wagmi";
 import { useWallet } from "@/hooks/use-connect";
-import { truncateAddress, weiToLocal } from "@/lib/format";
+import { formatCeloWei, truncateAddress } from "@/lib/format";
 
 export function WalletChip() {
   const { address, isConnected, connect, isConnecting } = useWallet();
@@ -30,7 +30,7 @@ export function WalletChip() {
       <span className="text-[11px] font-semibold font-mono">{truncateAddress(address!)}</span>
       {bal && (
         <span className="text-[10px] text-white/75">
-          {weiToLocal(bal.value)}
+          {formatCeloWei(bal.value)}
         </span>
       )}
     </div>

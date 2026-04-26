@@ -11,7 +11,7 @@ import { useClubHistory, type ClubActivityRow } from "@/hooks/use-club-history";
 import { usePuzzleHistory } from "@/hooks/use-puzzle-history";
 import type { PuzzleSessionRow } from "@/types/api";
 import { ACTIVE_CHAIN, STAKE_TOKEN } from "@/lib/contracts";
-import { formatStableLocal, truncateAddress } from "@/lib/format";
+import { formatCusd, truncateAddress } from "@/lib/format";
 import type {
   PlayerGameRow,
   PlayerTransactionRow,
@@ -130,7 +130,7 @@ export default function HistoryPage() {
             Total Earnings
           </p>
           <h1 className="mt-1 text-4xl font-extrabold tracking-tight">
-            {stats ? <>+{formatStableLocal(totalEarned, "USD")}</> : statsLoading ? "…" : "—"}
+            {stats ? <>+{formatCusd(totalEarned)}</> : statsLoading ? "…" : "—"}
           </h1>
           <p className="mt-1 text-xs text-white/80">
             {stats ? `total · on ${ACTIVE_CHAIN.name}` : ACTIVE_CHAIN.name}
@@ -385,7 +385,7 @@ function HistoryRow({
         </div>
         <p className={`text-sm font-bold ${deltaClass}`}>
           {net > 0 ? "+" : net < 0 ? "−" : ""}
-          {formatStableLocal(Math.abs(net), "USD")}
+          {formatCusd(Math.abs(net))}
         </p>
         <span
           aria-hidden
@@ -605,7 +605,7 @@ function PuzzleSessionRowItem({
         </div>
         <div className="flex flex-col items-end gap-0.5">
           <p className={`text-sm font-bold ${deltaClass}`}>
-            {prize > 0 ? `+${formatStableLocal(prize, "USD")}` : "—"}
+            {prize > 0 ? `+${formatCusd(prize)}` : "—"}
           </p>
           {txUrl && (
             <a
@@ -685,7 +685,7 @@ function ClubActivityRowItem({
         <div className="flex flex-col items-end gap-0.5">
           <p className={`text-sm font-bold ${deltaClass}`}>
             {net > 0 ? "+" : net < 0 ? "−" : ""}
-            {formatStableLocal(Math.abs(net), "USD")}
+            {formatCusd(Math.abs(net))}
           </p>
           {txUrl && (
             <a
