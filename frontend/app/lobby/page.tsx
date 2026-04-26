@@ -250,7 +250,7 @@ function MatchRow({
             ? phase === "join"
               ? "Joining..."
               : "..."
-            : `Join ${formatStableLocal(Number(game.stake_amount), "IDR")}`}
+            : `Join ${formatStableLocal(Number(game.stake_amount), "USD")}`}
         </button>
       )}
     </li>

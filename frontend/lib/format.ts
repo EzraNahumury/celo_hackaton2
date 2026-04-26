@@ -1,6 +1,6 @@
 import { formatUnits, parseEther } from "viem";
 
-export type Locale = "id-ID" | "en-NG" | "en-KE" | "en-PH" | "en-GH" | "en-ZA";
+export type Locale = "id-ID" | "en-NG" | "en-KE" | "en-PH" | "en-GH" | "en-ZA" | "en-US";
 export type CurrencyCode = "IDR" | "NGN" | "KES" | "PHP" | "GHS" | "ZAR" | "USD";
 
 // 1 CELO ≈ $0.50 → these rates convert native CELO to local fiat for display.
@@ -32,17 +32,17 @@ export const CURRENCY_LOCALE: Record<CurrencyCode, Locale> = {
   PHP: "en-PH",
   GHS: "en-GH",
   ZAR: "en-ZA",
-  USD: "en-NG",
+  USD: "en-US",
 };
 
 export function celoToLocal(celo: number, currency: CurrencyCode): number {
   return celo * CELO_RATES[currency];
 }
 
-export function formatLocal(celo: number, currency: CurrencyCode = "IDR"): string {
+export function formatLocal(celo: number, currency: CurrencyCode = "USD"): string {
   const v = celoToLocal(celo, currency);
   const locale = CURRENCY_LOCALE[currency];
-  const digits = currency === "IDR" || currency === "NGN" || currency === "KES" ? 0 : 2;
+  const digits = currency === "NGN" || currency === "KES" ? 0 : 2;
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
@@ -55,10 +55,10 @@ export function stableToLocal(amount: number, currency: CurrencyCode): number {
   return amount * STABLE_RATES[currency];
 }
 
-export function formatStableLocal(amount: number, currency: CurrencyCode = "IDR"): string {
+export function formatStableLocal(amount: number, currency: CurrencyCode = "USD"): string {
   const v = stableToLocal(amount, currency);
   const locale = CURRENCY_LOCALE[currency];
-  const digits = currency === "IDR" || currency === "NGN" || currency === "KES" ? 0 : 2;
+  const digits = currency === "NGN" || currency === "KES" ? 0 : 2;
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
@@ -85,7 +85,7 @@ export function formatCusdWei(wei: bigint, decimals = 2): string {
   return `${Number(formatUnits(wei, 18)).toFixed(decimals)} CELO`;
 }
 
-export function weiToLocal(wei: bigint, currency: CurrencyCode = "IDR"): string {
+export function weiToLocal(wei: bigint, currency: CurrencyCode = "USD"): string {
   return formatLocal(Number(formatUnits(wei, 18)), currency);
 }
 

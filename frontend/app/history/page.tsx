@@ -130,7 +130,7 @@ export default function HistoryPage() {
             Total Earnings
           </p>
           <h1 className="mt-1 text-4xl font-extrabold tracking-tight">
-            {stats ? <>+{formatStableLocal(totalEarned, "IDR")}</> : statsLoading ? "…" : "—"}
+            {stats ? <>+{formatStableLocal(totalEarned, "USD")}</> : statsLoading ? "…" : "—"}
           </h1>
           <p className="mt-1 text-xs text-white/80">
             {stats ? `total · on ${ACTIVE_CHAIN.name}` : ACTIVE_CHAIN.name}
@@ -192,7 +192,7 @@ export default function HistoryPage() {
             </button>
           </div>
         ) : activityTab === "puzzle" ? (
-          puzzleLoading && puzzleSessions.length === 0 ? (
+          puzzleLoading && puzzleSessions.filter((s) => s.prize_paid).length === 0 ? (
             <div className="mt-6 flex items-center justify-center py-10 text-sm text-[color:var(--color-ink-2)]">
               Loading puzzle history…
             </div>
@@ -200,7 +200,7 @@ export default function HistoryPage() {
             <div className="card mt-4 p-4 text-[11px] text-[color:var(--color-danger)]">
               Failed to load: {puzzleError}
             </div>
-          ) : puzzleSessions.length === 0 ? (
+          ) : puzzleSessions.filter((s) => s.prize_paid).length === 0 ? (
             <div className="card mt-4 flex flex-col items-center gap-2 p-8 text-center">
               <SparkleIcon
                 size={28}
@@ -208,10 +208,10 @@ export default function HistoryPage() {
                 style={{ animationDuration: "2.5s" }}
               />
               <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
-                No puzzles solved yet
+                No puzzle prizes yet
               </p>
               <p className="text-[11px] text-[color:var(--color-ink-2)]">
-                Solve daily puzzles to earn rewards.
+                Solve daily puzzles without hints to earn rewards.
               </p>
               <Link
                 href="/puzzle"
@@ -222,7 +222,7 @@ export default function HistoryPage() {
             </div>
           ) : (
             <ul className="mt-4 flex flex-col gap-2">
-              {puzzleSessions.map((s) => (
+              {puzzleSessions.filter((s) => s.prize_paid).map((s) => (
                 <PuzzleSessionRowItem key={s.id} session={s} explorer={explorer} />
               ))}
             </ul>
@@ -385,7 +385,7 @@ function HistoryRow({
         </div>
         <p className={`text-sm font-bold ${deltaClass}`}>
           {net > 0 ? "+" : net < 0 ? "−" : ""}
-          {formatStableLocal(Math.abs(net), "IDR")}
+          {formatStableLocal(Math.abs(net), "USD")}
         </p>
         <span
           aria-hidden
@@ -605,7 +605,7 @@ function PuzzleSessionRowItem({
         </div>
         <div className="flex flex-col items-end gap-0.5">
           <p className={`text-sm font-bold ${deltaClass}`}>
-            {prize > 0 ? `+${formatStableLocal(prize, "IDR")}` : "—"}
+            {prize > 0 ? `+${formatStableLocal(prize, "USD")}` : "—"}
           </p>
           {txUrl && (
             <a
@@ -685,7 +685,7 @@ function ClubActivityRowItem({
         <div className="flex flex-col items-end gap-0.5">
           <p className={`text-sm font-bold ${deltaClass}`}>
             {net > 0 ? "+" : net < 0 ? "−" : ""}
-            {formatStableLocal(Math.abs(net), "IDR")}
+            {formatStableLocal(Math.abs(net), "USD")}
           </p>
           {txUrl && (
             <a

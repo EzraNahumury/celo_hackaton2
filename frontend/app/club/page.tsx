@@ -15,6 +15,7 @@ import {
   useStartNewWeek,
   type ClubTxPhase,
 } from "@/hooks/use-club-vault";
+import { useMyClubs } from "@/hooks/use-my-clubs";
 import { CLUB_FEE_BPS, CLUB_FIRST_BPS, CLUB_ROLL_BPS, CLUB_SECOND_BPS } from "@/lib/contracts";
 import { formatCusd, formatStableLocal, truncateAddress } from "@/lib/format";
 import { clubVaultAbi } from "@/lib/abis/club-vault";
@@ -41,6 +42,8 @@ export default function ClubPage() {
   const [clubIdInput, setClubIdInput] = useState<string>("");
   const [copied, setCopied] = useState(false);
   const [joinPhase, setJoinPhase] = useState<JoinUiPhase>("idle");
+
+  const { clubs: myClubs, loading: myClubsLoading } = useMyClubs(address);
 
   const { createClub, isPending: creating, hash: createHash } = useCreateClub();
   const { joinClub, isPending: joining, hash: joinHash } = useJoinClub();
@@ -214,7 +217,7 @@ export default function ClubPage() {
                     className={`rounded-2xl border-2 px-3 py-4 text-left ${active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-50)]" : "border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)]"}`}
                   >
                     <p className="text-lg font-bold text-[color:var(--color-ink-0)]">{b.toFixed(2)} CELO</p>
-                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(b, "IDR")}</p>
+                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(b, "USD")}</p>
                   </button>
                 );
               })}
@@ -250,7 +253,7 @@ export default function ClubPage() {
               disabled={creating || isConnecting || createStatus === "pending"}
               className="mt-5 w-full rounded-2xl bg-[color:var(--color-primary)] py-4 text-base font-bold text-white shadow-[var(--shadow-glow-primary)] disabled:opacity-70"
             >
-              {creating || createStatus === "pending" ? "Submitting..." : !isConnected ? "Connect MiniPay" : `Create Club · ${formatStableLocal(buyIn, "IDR")}`}
+              {creating || createStatus === "pending" ? "Submitting..." : !isConnected ? "Connect MiniPay" : `Create Club · ${formatStableLocal(buyIn, "USD")}`}
             </button>
             {createHash && <p className="mt-3 text-center"><TxExplorerLink hash={createHash} /></p>}
           </section>
@@ -317,26 +320,49 @@ export default function ClubPage() {
         {tab === "club" && (
           <section className="card mt-4 p-5">
             {!myClubId ? (
-              <>
-                <p className="text-center text-sm text-[color:var(--color-ink-2)]">Enter your club ID to view</p>
-                <div className="mt-3 flex gap-2">
-                  <input
-                    value={clubIdInput}
-                    onChange={(e) => setClubIdInput(e.target.value.replace(/\D/g, ""))}
-                    inputMode="numeric"
-                    placeholder="Club ID"
-                    className="flex-1 rounded-2xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => clubIdInput && setMyClubId(BigInt(clubIdInput))}
-                    disabled={!clubIdInput}
-                    className="rounded-2xl bg-[color:var(--color-primary)] px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
-                  >
-                    View
-                  </button>
+              /* ── Club list ─────────────────────────────────────── */
+              myClubsLoading ? (
+                <p className="py-4 text-center text-sm text-[color:var(--color-ink-2)]">Loading your clubs…</p>
+              ) : myClubs.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-6 text-center">
+                  <ClubIcon size={28} className="text-[color:var(--color-ink-3)]" />
+                  <p className="text-sm font-bold text-[color:var(--color-ink-0)]">No clubs yet</p>
+                  <p className="text-[11px] text-[color:var(--color-ink-2)]">Create a club or join one using its ID.</p>
                 </div>
-              </>
+              ) : (
+                <div className="space-y-2">
+                  {myClubs.map((c) => {
+                    const buyInCusd = Number(formatUnits(c.data.buyIn, 18));
+                    const isActive = c.data.state === 0;
+                    return (
+                      <button
+                        key={c.clubId.toString()}
+                        type="button"
+                        onClick={() => setMyClubId(c.clubId)}
+                        className="flex w-full items-center gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-soft)] px-4 py-3 text-left transition-colors active:bg-[color:var(--color-primary-50)]"
+                      >
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--color-primary-50)] text-[color:var(--color-primary)]">
+                          <ClubIcon size={18} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
+                            Club #{c.clubId.toString()}
+                            {c.isCreator && (
+                              <span className="ml-2 text-[10px] font-semibold text-[color:var(--color-primary)]">Creator</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-[color:var(--color-ink-2)]">
+                            {c.memberCount}/{c.data.maxMembers.toString()} members · {formatCusd(buyInCusd)} buy-in
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                          {isActive ? "Active" : "Closed"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
             ) : !clubData ? (
               <p className="py-4 text-center text-sm text-[color:var(--color-ink-2)]">Loading club...</p>
             ) : (
@@ -370,12 +396,12 @@ export default function ClubPage() {
                   <div className="rounded-2xl bg-[color:var(--color-surface-soft)] p-3">
                     <p className="text-[10px] uppercase tracking-wide text-[color:var(--color-ink-3)]">Pot</p>
                     <p className="text-base font-bold text-[color:var(--color-success)]">{formatCusd(clubPotCusd)}</p>
-                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubPotCusd, "IDR")}</p>
+                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubPotCusd, "USD")}</p>
                   </div>
                   <div className="rounded-2xl bg-[color:var(--color-surface-soft)] p-3">
                     <p className="text-[10px] uppercase tracking-wide text-[color:var(--color-ink-3)]">Buy-in</p>
                     <p className="text-base font-bold text-[color:var(--color-ink-0)]">{formatCusd(clubBuyInCusd)}</p>
-                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubBuyInCusd, "IDR")}</p>
+                    <p className="text-[11px] text-[color:var(--color-ink-2)]">{formatStableLocal(clubBuyInCusd, "USD")}</p>
                   </div>
                 </div>
 
@@ -434,7 +460,7 @@ export default function ClubPage() {
                   }}
                   className="mt-4 w-full text-center text-xs text-[color:var(--color-ink-3)] underline"
                 >
-                  View a different club
+                  ← Back to my clubs
                 </button>
               </>
             )}
