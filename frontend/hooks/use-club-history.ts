@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatUnits } from "viem";
+import { formatUnits, type AbiEvent } from "viem";
 import { usePublicClient } from "wagmi";
 import { clubVaultAbi } from "@/lib/abis/club-vault";
 import { ACTIVE_CHAIN, CONTRACTS, CONTRACTS_CONFIGURED, CONTRACTS_DEPLOY_BLOCK } from "@/lib/contracts";
@@ -19,15 +19,18 @@ export type ClubActivityRow = {
   txHash: `0x${string}`;
 };
 
+// Casting to AbiEvent — viem's getLogs has a generic `event` slot that the
+// inferred Parameters<typeof getLogs>[0]["event"] type can't satisfy in
+// strict mode, so we narrow via the public AbiEvent type instead.
 const CLUB_CREATED_EVENT = clubVaultAbi.find(
   (e) => e.type === "event" && e.name === "ClubCreated",
-)!;
+)! as AbiEvent;
 const MEMBER_JOINED_EVENT = clubVaultAbi.find(
   (e) => e.type === "event" && e.name === "MemberJoined",
-)!;
+)! as AbiEvent;
 const CLUB_SETTLED_EVENT = clubVaultAbi.find(
   (e) => e.type === "event" && e.name === "ClubSettled",
-)!;
+)! as AbiEvent;
 
 export function useClubHistory(address: WalletAddress | undefined) {
   const [rows, setRows] = useState<ClubActivityRow[]>([]);
@@ -51,14 +54,14 @@ export function useClubHistory(address: WalletAddress | undefined) {
         const [createdLogs, joinedLogs] = await Promise.all([
           publicClient.getLogs({
             address: contractAddress,
-            event: CLUB_CREATED_EVENT as Parameters<typeof publicClient.getLogs>[0]["event"],
+            event: CLUB_CREATED_EVENT,
             args: { creator: address },
             fromBlock: CONTRACTS_DEPLOY_BLOCK,
             toBlock: "latest",
           }),
           publicClient.getLogs({
             address: contractAddress,
-            event: MEMBER_JOINED_EVENT as Parameters<typeof publicClient.getLogs>[0]["event"],
+            event: MEMBER_JOINED_EVENT,
             args: { member: address },
             fromBlock: CONTRACTS_DEPLOY_BLOCK,
             toBlock: "latest",
@@ -95,7 +98,7 @@ export function useClubHistory(address: WalletAddress | undefined) {
             allClubIds.map((clubId) =>
               publicClient.getLogs({
                 address: contractAddress,
-                event: CLUB_SETTLED_EVENT as Parameters<typeof publicClient.getLogs>[0]["event"],
+                event: CLUB_SETTLED_EVENT,
                 args: { clubId },
                 fromBlock: CONTRACTS_DEPLOY_BLOCK,
                 toBlock: "latest",
