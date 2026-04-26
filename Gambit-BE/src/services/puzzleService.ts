@@ -303,6 +303,15 @@ export async function submitPuzzle(
   const prizeEligible =
     correct && !usedHint && (prizesBefore ?? 0) < MAX_DAILY_PRIZES;
 
+  logger.info("Puzzle submit eligibility", {
+    address,
+    puzzleId,
+    correct,
+    usedHint,
+    prizesBefore: prizesBefore ?? 0,
+    prizeEligible,
+  });
+
   // Prize payout
   let txHash: string | null = null;
   let prizePaid = false;

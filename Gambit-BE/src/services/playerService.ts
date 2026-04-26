@@ -72,12 +72,18 @@ export async function updatePlayerStats(
 export async function addPlayerEarnings(address: string, earned: number): Promise<void> {
   if (earned <= 0) return;
   const addr = normalizeAddress(address);
-  const player = await getPlayer(addr);
-  if (!player) return;
-  await supabase
-    .from("players")
-    .update({ total_earned: Number(player.total_earned) + earned })
-    .eq("wallet_address", addr);
+
+  // Atomic increment via raw SQL — avoids read-then-write race condition
+  const { error } = await supabase.rpc("increment_total_earned", {
+    p_address: addr,
+    p_amount: earned,
+  });
+
+  if (error) {
+    logger.error("addPlayerEarnings failed", { address: addr, earned, error: error.message });
+  } else {
+    logger.info("addPlayerEarnings success", { address: addr, earned });
+  }
 }
 
 export async function updatePlayerRating(address: string, newRating: number): Promise<void> {
