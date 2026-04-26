@@ -15,7 +15,6 @@ import type { NextPuzzle, PuzzleStatus, SubmitPuzzleResponse } from "@/types/api
 type Phase =
   | "idle"        // wallet not connected
   | "loading"     // fetching puzzle
-  | "exhausted"   // all daily prizes claimed
   | "playing"     // player's turn
   | "wrong"       // brief red flash after wrong move
   | "animating"   // opponent response animating
@@ -61,6 +60,12 @@ export default function PuzzlePage() {
   // Result
   const [result, setResult] = useState<SubmitPuzzleResponse | null>(null);
 
+  // Practice mode: when user has used all 3 daily claims, they can still
+  // play puzzles for fun — moves are still validated by BE (free endpoint),
+  // but submitPuzzle is never called so no prize counter is incremented.
+  const [isPractice, setIsPractice] = useState(false);
+  const isPracticeRef = useRef(false);
+
   // ── Load puzzle ──────────────────────────────────────────────────────────────
   // Use a ref so we can call loadPuzzle inside effects without adding it as a dep
   const loadPuzzle = useCallback(async () => {
@@ -87,10 +92,9 @@ export default function PuzzlePage() {
         api.getPuzzleStatus(),
       ]);
       setStatus(s);
-      if (s.prizesRemaining === 0) {
-        setPhase("exhausted");
-        return;
-      }
+      const exhausted = s.prizesRemaining === 0;
+      setIsPractice(exhausted);
+      isPracticeRef.current = exhausted;
       setPuzzle(p);
       puzzleRef.current = p;
       setBoardFen(p.fen);
@@ -229,6 +233,19 @@ export default function PuzzlePage() {
         setPlayerMoves(newMoves);
 
         if (resp.puzzleComplete || !resp.opponentMove) {
+          if (isPracticeRef.current) {
+            // Practice mode: don't submit (would fail dailyClaims constraint
+            // anyway, and we don't want to waste oracle signing). Just toast
+            // and auto-load the next puzzle.
+            toast.show({
+              title: "Solved! 🎉",
+              message: "Practice mode — no prize. Loading next puzzle…",
+              tone: "info",
+            });
+            setPhase("playing");
+            setTimeout(() => loadPuzzleRef.current(), 1500);
+            return;
+          }
           await doSubmit(newMoves, capturedHint);
           return;
         }
@@ -320,9 +337,19 @@ export default function PuzzlePage() {
           <span className="h-9 w-9" />
         </header>
         <section className="mt-6 text-center fade-in-up">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/80">Prize per correct answer</p>
-          <h1 className="mt-1 text-4xl font-extrabold tracking-tight">0.01 CELO</h1>
-          <p className="mt-1 text-[11px] text-white/80">{prizeLabel}</p>
+          {isPractice ? (
+            <>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/80">Practice Mode</p>
+              <h1 className="mt-1 text-4xl font-extrabold tracking-tight">No Prize</h1>
+              <p className="mt-1 text-[11px] text-white/80">All 3 prizes claimed today · resets 00:00 UTC</p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/80">Prize per correct answer</p>
+              <h1 className="mt-1 text-4xl font-extrabold tracking-tight">0.01 CELO</h1>
+              <p className="mt-1 text-[11px] text-white/80">{prizeLabel}</p>
+            </>
+          )}
         </section>
       </div>
 
@@ -358,29 +385,6 @@ export default function PuzzlePage() {
               </div>
             )}
 
-            {/* Exhausted — all prizes claimed today */}
-            {phase === "exhausted" && (
-              <div className="aspect-square flex flex-col items-center justify-center gap-4 bg-[color:var(--color-surface)] px-6 text-center">
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[color:var(--color-primary-50)] text-[color:var(--color-primary)]">
-                  <BoltIcon size={30} />
-                </span>
-                <div>
-                  <p className="text-base font-extrabold text-[color:var(--color-ink-0)]">
-                    All prizes claimed!
-                  </p>
-                  <p className="mt-1 text-sm text-[color:var(--color-ink-2)]">
-                    You&apos;ve earned all 3 prizes today.{"\n"}Come back tomorrow at 00:00 UTC.
-                  </p>
-                </div>
-                <Link
-                  href="/home"
-                  className="rounded-2xl bg-[color:var(--color-primary)] px-6 py-3 text-sm font-bold text-white shadow-[var(--shadow-glow-primary)]"
-                >
-                  Go Home
-                </Link>
-              </div>
-            )}
-
             {/* Error */}
             {phase === "error" && (
               <div className="aspect-square flex flex-col items-center justify-center gap-4 bg-[color:var(--color-surface)]">
@@ -396,7 +400,7 @@ export default function PuzzlePage() {
             )}
 
             {/* Board */}
-            {boardFen && phase !== "idle" && phase !== "loading" && phase !== "error" && phase !== "exhausted" && (
+            {boardFen && phase !== "idle" && phase !== "loading" && phase !== "error" && (
               <Chessboard
                 fen={boardFen}
                 orientation={playerColor === "b" ? "black" : "white"}
@@ -443,12 +447,19 @@ export default function PuzzlePage() {
                 {statusText}
               </p>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-[color:var(--color-primary-50)] px-3 py-1.5 text-[color:var(--color-primary)]">
-              <SparkleIcon size={14} />
-              <span className="text-xs font-bold">
-                {status ? `${status.prizesEarned}/${status.maxDailyPrizes}` : "—"}
-              </span>
-            </div>
+            {isPractice ? (
+              <div className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-amber-700">
+                <SparkleIcon size={14} />
+                <span className="text-xs font-bold">PRACTICE</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 rounded-full bg-[color:var(--color-primary-50)] px-3 py-1.5 text-[color:var(--color-primary)]">
+                <SparkleIcon size={14} />
+                <span className="text-xs font-bold">
+                  {status ? `${status.prizesEarned}/${status.maxDailyPrizes}` : "—"}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -499,8 +510,8 @@ export default function PuzzlePage() {
           </div>
         )}
 
-        {/* Hint button */}
-        {(phase === "playing" || phase === "animating") && (
+        {/* Hint button — hidden in practice mode (no prize to disqualify from) */}
+        {(phase === "playing" || phase === "animating") && !isPractice && (
           <button
             type="button"
             onClick={() => !usedHint && setShowHintWarning(true)}
@@ -518,7 +529,9 @@ export default function PuzzlePage() {
 
         <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-[color:var(--color-ink-2)]">
           <BoltIcon size={12} className="text-[color:var(--color-amber)]" />
-          Max 3 prizes/day · resets at 00:00 UTC
+          {isPractice
+            ? "Practice mode · prizes reset at 00:00 UTC"
+            : "Max 3 prizes/day · resets at 00:00 UTC"}
         </p>
       </div>
 
