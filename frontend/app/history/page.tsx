@@ -117,6 +117,16 @@ export default function HistoryPage() {
   const draws = stats?.draws ?? 0;
   const losses = stats?.losses ?? 0;
 
+  // Puzzle stats
+  const puzzlePrized = puzzleSessions.filter((s) => s.prize_paid).length;
+  const puzzleCorrect = puzzleSessions.filter((s) => s.correct && !s.prize_paid).length;
+  const puzzleTotal = puzzleSessions.length;
+
+  // Club stats
+  const clubCreated = clubRows.filter((r) => r.kind === "created").length;
+  const clubWon = clubRows.filter((r) => r.kind === "won").length;
+  const clubJoined = clubRows.filter((r) => r.kind === "joined").length;
+
   const explorer = ACTIVE_CHAIN.blockExplorers?.default.url;
 
   return (
@@ -140,23 +150,33 @@ export default function HistoryPage() {
 
       <main className="flex-1 px-5 pb-6">
         <div className="card -mt-6 flex items-center overflow-hidden relative z-10 p-4">
-          <Stat
-            label="Wins"
-            value={stats ? String(wins) : statsLoading ? "…" : "—"}
-            accent="text-[color:var(--color-success)]"
-          />
-          <Divider />
-          <Stat
-            label="Draws"
-            value={stats ? String(draws) : statsLoading ? "…" : "—"}
-            accent="text-[color:var(--color-ink-0)]"
-          />
-          <Divider />
-          <Stat
-            label="Losses"
-            value={stats ? String(losses) : statsLoading ? "…" : "—"}
-            accent="text-[color:var(--color-danger)]"
-          />
+          {activityTab === "matches" && (
+            <>
+              <Stat label="Wins" value={stats ? String(wins) : statsLoading ? "…" : "—"} accent="text-[color:var(--color-success)]" />
+              <Divider />
+              <Stat label="Draws" value={stats ? String(draws) : statsLoading ? "…" : "—"} accent="text-[color:var(--color-ink-0)]" />
+              <Divider />
+              <Stat label="Losses" value={stats ? String(losses) : statsLoading ? "…" : "—"} accent="text-[color:var(--color-danger)]" />
+            </>
+          )}
+          {activityTab === "puzzle" && (
+            <>
+              <Stat label="Prizes" value={puzzleLoading ? "…" : String(puzzlePrized)} accent="text-[color:var(--color-success)]" />
+              <Divider />
+              <Stat label="Correct" value={puzzleLoading ? "…" : String(puzzleCorrect)} accent="text-[color:var(--color-primary)]" />
+              <Divider />
+              <Stat label="Played" value={puzzleLoading ? "…" : String(puzzleTotal)} accent="text-[color:var(--color-ink-0)]" />
+            </>
+          )}
+          {activityTab === "club" && (
+            <>
+              <Stat label="Created" value={clubLoading ? "…" : String(clubCreated)} accent="text-[color:var(--color-primary)]" />
+              <Divider />
+              <Stat label="Won" value={clubLoading ? "…" : String(clubWon)} accent="text-[color:var(--color-success)]" />
+              <Divider />
+              <Stat label="Joined" value={clubLoading ? "…" : String(clubJoined)} accent="text-[color:var(--color-ink-0)]" />
+            </>
+          )}
         </div>
 
         {/* Tab switcher */}
