@@ -16,7 +16,7 @@ import { useWallet } from "@/hooks/use-connect";
 import { usePlayerBadges } from "@/hooks/use-badges";
 import { usePlayerStats } from "@/hooks/use-player-stats";
 import { ACTIVE_CHAIN, CONTRACTS } from "@/lib/contracts";
-import { formatCeloWei, truncateAddress, weiToLocal } from "@/lib/format";
+import { formatCeloWei, truncateAddress } from "@/lib/format";
 
 type ContractKey = "hub" | "matchEscrow" | "puzzlePool" | "clubVault" | "badges";
 
@@ -140,8 +140,7 @@ export default function ProfilePage() {
 
       <main className="flex-1 px-5 pb-6">
         <section className="card -mt-10 p-4 relative z-10">
-          <div className="grid grid-cols-3 gap-3">
-            <Stat label="Balance" value={bal ? weiToLocal(bal.value) : "—"} />
+          <div className="grid grid-cols-2 gap-3">
             <Stat label="CELO" value={bal ? formatCeloWei(bal.value, 3) : "—"} />
             <Stat label="Badges" value={String(badges.filter((b) => b.owned).length)} />
           </div>
