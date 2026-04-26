@@ -13,6 +13,10 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Gambit Chess",
   description: "Main catur, menang CELO. Settle langsung ke MiniPay.",
+  other: {
+    "talentapp:project_verification":
+      "d82700860dfa83cbd18beca0a1fe3b744729e2b104cdbc673421883425a3ff93a3361ed7c82985061c00a1c58a44ca02637b34c3a3db0a84b09b001eb60e8751",
+  },
 };
 
 export const viewport: Viewport = {
