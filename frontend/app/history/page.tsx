@@ -8,6 +8,8 @@ import { useWallet } from "@/hooks/use-connect";
 import { usePlayerHistory } from "@/hooks/use-player-history";
 import { usePlayerStats } from "@/hooks/use-player-stats";
 import { useClubHistory, type ClubActivityRow } from "@/hooks/use-club-history";
+import { usePuzzleHistory } from "@/hooks/use-puzzle-history";
+import type { PuzzleSessionRow } from "@/types/api";
 import { ACTIVE_CHAIN, STAKE_TOKEN } from "@/lib/contracts";
 import { formatStableLocal, truncateAddress } from "@/lib/format";
 import type {
@@ -93,13 +95,14 @@ function classifyRow(
   return { game, depositTx, payoutTx, refundTx, net, kind };
 }
 
-type ActivityTab = "matches" | "club";
+type ActivityTab = "matches" | "puzzle" | "club";
 
 export default function HistoryPage() {
   const { address, isConnected, connect, isConnecting } = useWallet();
   const { entry: stats, loading: statsLoading } = usePlayerStats(address);
   const { games, transactions, loading, error } = usePlayerHistory(address);
   const { rows: clubRows, loading: clubLoading, error: clubError } = useClubHistory(address);
+  const { sessions: puzzleSessions, loading: puzzleLoading, error: puzzleError } = usePuzzleHistory(address);
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [activityTab, setActivityTab] = useState<ActivityTab>("matches");
@@ -161,6 +164,9 @@ export default function HistoryPage() {
           <TabBtn active={activityTab === "matches"} onClick={() => setActivityTab("matches")}>
             Matches
           </TabBtn>
+          <TabBtn active={activityTab === "puzzle"} onClick={() => setActivityTab("puzzle")}>
+            Puzzle
+          </TabBtn>
           <TabBtn active={activityTab === "club"} onClick={() => setActivityTab("club")}>
             Club
           </TabBtn>
@@ -185,6 +191,42 @@ export default function HistoryPage() {
               {isConnecting ? "Connecting…" : "Connect MiniPay"}
             </button>
           </div>
+        ) : activityTab === "puzzle" ? (
+          puzzleLoading && puzzleSessions.length === 0 ? (
+            <div className="mt-6 flex items-center justify-center py-10 text-sm text-[color:var(--color-ink-2)]">
+              Loading puzzle history…
+            </div>
+          ) : puzzleError ? (
+            <div className="card mt-4 p-4 text-[11px] text-[color:var(--color-danger)]">
+              Failed to load: {puzzleError}
+            </div>
+          ) : puzzleSessions.length === 0 ? (
+            <div className="card mt-4 flex flex-col items-center gap-2 p-8 text-center">
+              <SparkleIcon
+                size={28}
+                className="animate-spin text-[color:var(--color-ink-3)]"
+                style={{ animationDuration: "2.5s" }}
+              />
+              <p className="text-sm font-bold text-[color:var(--color-ink-0)]">
+                No puzzles solved yet
+              </p>
+              <p className="text-[11px] text-[color:var(--color-ink-2)]">
+                Solve daily puzzles to earn rewards.
+              </p>
+              <Link
+                href="/puzzle"
+                className="mt-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2 text-xs font-bold text-white"
+              >
+                Solve a Puzzle
+              </Link>
+            </div>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-2">
+              {puzzleSessions.map((s) => (
+                <PuzzleSessionRowItem key={s.id} session={s} explorer={explorer} />
+              ))}
+            </ul>
+          )
         ) : activityTab === "matches" ? (
           loading && rows.length === 0 ? (
             <div className="mt-6 flex items-center justify-center py-10 text-sm text-[color:var(--color-ink-2)]">
@@ -510,6 +552,74 @@ function TabBtn({
     >
       {children}
     </button>
+  );
+}
+
+function PuzzleSessionRowItem({
+  session,
+  explorer,
+}: {
+  session: PuzzleSessionRow;
+  explorer: string | undefined;
+}) {
+  const { correct, used_hint, prize_paid, tx_hash, solve_time_ms, created_at } = session;
+
+  const chipClass = prize_paid
+    ? "bg-[color:var(--color-success-soft)] text-[color:var(--color-success)]"
+    : correct
+      ? "bg-[color:var(--color-primary-50)] text-[color:var(--color-primary)]"
+      : "bg-[color:var(--color-danger-soft)] text-[color:var(--color-danger)]";
+
+  const statusLabel = prize_paid
+    ? "Prize earned"
+    : correct && used_hint
+      ? "Correct (hint used)"
+      : correct
+        ? "Correct"
+        : "Incorrect";
+
+  const prize = prize_paid ? 0.01 : 0;
+  const deltaClass = prize > 0 ? "text-[color:var(--color-success)]" : "text-[color:var(--color-ink-3)]";
+
+  const solveLabel = solve_time_ms
+    ? solve_time_ms < 60_000
+      ? `${(solve_time_ms / 1000).toFixed(1)}s`
+      : `${Math.floor(solve_time_ms / 60000)}m ${Math.round((solve_time_ms % 60000) / 1000)}s`
+    : null;
+
+  const txUrl = tx_hash && explorer ? `${explorer}/tx/${tx_hash}` : undefined;
+
+  return (
+    <li className="card overflow-hidden">
+      <div className="flex w-full items-center gap-3 px-4 py-3">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${chipClass}`}>
+          <SparkleIcon size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-[color:var(--color-ink-0)]">
+            Daily Puzzle
+          </p>
+          <p className="text-[11px] text-[color:var(--color-ink-2)]">
+            {statusLabel}{solveLabel ? ` · ${solveLabel}` : ""} · {fmtDate(created_at)}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-0.5">
+          <p className={`text-sm font-bold ${deltaClass}`}>
+            {prize > 0 ? `+${formatStableLocal(prize, "IDR")}` : "—"}
+          </p>
+          {txUrl && (
+            <a
+              href={txUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-bold text-[color:var(--color-primary)]"
+            >
+              Verify ↗
+            </a>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }
 

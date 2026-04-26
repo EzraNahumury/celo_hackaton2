@@ -6,6 +6,7 @@ import { env } from "../config/env";
 import { normalizeAddress } from "../utils/helpers";
 import { logger } from "../utils/logger";
 import { fetchLichessPuzzle, getRandomFallbackPuzzle } from "./lichessService";
+import { addPlayerEarnings } from "./playerService";
 import ERC20_ABI from "../contracts/erc20.json";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -363,6 +364,11 @@ export async function submitPuzzle(
         address, puzzleId,
       });
     }
+  }
+
+  // Update total_earned if prize was paid
+  if (prizePaid) {
+    await addPlayerEarnings(address, PRIZE_AMOUNT_CUSD);
   }
 
   // Record session

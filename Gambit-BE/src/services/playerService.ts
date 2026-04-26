@@ -69,6 +69,17 @@ export async function updatePlayerStats(
   await supabase.from("players").update(updates).eq("wallet_address", addr);
 }
 
+export async function addPlayerEarnings(address: string, earned: number): Promise<void> {
+  if (earned <= 0) return;
+  const addr = normalizeAddress(address);
+  const player = await getPlayer(addr);
+  if (!player) return;
+  await supabase
+    .from("players")
+    .update({ total_earned: Number(player.total_earned) + earned })
+    .eq("wallet_address", addr);
+}
+
 export async function updatePlayerRating(address: string, newRating: number): Promise<void> {
   await supabase
     .from("players")

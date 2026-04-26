@@ -78,6 +78,16 @@ export default function ClubPage() {
   const { data: clubData, refetch: refetchClub } = useClub(myClubId);
   const { data: membersData, refetch: refetchMembers } = useClubMembers(myClubId);
 
+  // Preview club data when user types a join ID — used to block duplicate joins
+  const joinClubIdBigInt = joinId ? BigInt(joinId) : undefined;
+  const { data: joinClubPreview } = useClub(joinClubIdBigInt);
+  const { data: joinClubMembers } = useClubMembers(joinClubIdBigInt);
+  const isAlreadyMember = !!address && !!joinClubMembers?.some(
+    (m) => m.toLowerCase() === address.toLowerCase(),
+  );
+  const isJoinCreator = !!address && joinClubPreview?.creator?.toLowerCase() === address.toLowerCase();
+  const cannotJoin = isAlreadyMember || isJoinCreator;
+
   const { data: newWeekReceipt } = useWaitForTransactionReceipt({ hash: newWeekHash });
   useEffect(() => {
     if (!newWeekReceipt) return;
@@ -134,16 +144,20 @@ export default function ClubPage() {
   const isActive = clubData?.state === 0;
   const memberCount = membersData?.length ?? 0;
   const spotsLeft = clubData ? Number(clubData.maxMembers) - memberCount : 0;
-  const joinWorking = joinPhase !== "idle" || joining || isConnecting || joinStatus === "pending";
+  const joinWorking = joinPhase !== "idle" || joining || isConnecting || joinStatus === "pending" || cannotJoin;
   const joinButtonLabel = !isConnected
     ? "Connect MiniPay"
-    : joinPhase === "approve"
-      ? "Approving CELO..."
-      : joinPhase === "approve_wait"
-        ? "Waiting for confirmation..."
-        : joinPhase === "write" || joining || joinStatus === "pending"
-          ? "Joining club..."
-          : "Join Club";
+    : isJoinCreator
+      ? "You are the club creator"
+      : isAlreadyMember
+        ? "Already a member"
+        : joinPhase === "approve"
+          ? "Approving CELO..."
+          : joinPhase === "approve_wait"
+            ? "Waiting for confirmation..."
+            : joinPhase === "write" || joining || joinStatus === "pending"
+              ? "Joining club..."
+              : "Join Club";
   const joinPhaseHint =
     joinPhase === "approve"
       ? "Sending token approval transaction."
@@ -262,6 +276,26 @@ export default function ClubPage() {
               className="mt-2 w-full rounded-2xl border border-[color:var(--color-border)] bg-white px-4 py-3 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
             />
             <p className="mt-1 text-[11px] text-[color:var(--color-ink-3)]">CELO</p>
+
+            {cannotJoin && joinId && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+                <p>
+                  {isJoinCreator
+                    ? "You created this club. "
+                    : "You are already a member of this club. "}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMyClubId(BigInt(joinId));
+                    setTab("club");
+                  }}
+                  className="mt-1 font-bold underline"
+                >
+                  View club &rarr;
+                </button>
+              </div>
+            )}
 
             <button
               type="button"

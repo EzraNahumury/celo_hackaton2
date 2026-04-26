@@ -266,6 +266,23 @@ export type PlayerTransactionsResponse = {
   offset: number;
 };
 
+export type PuzzleSessionRow = {
+  id: string;
+  puzzle_id: string;
+  correct: boolean;
+  used_hint: boolean;
+  prize_paid: boolean;
+  tx_hash: string | null;
+  solve_time_ms: number | null;
+  created_at: Timestamp;
+};
+
+export type PlayerPuzzleSessionsResponse = {
+  sessions: PuzzleSessionRow[];
+  limit: number;
+  offset: number;
+};
+
 export type OnlineCountResponse = { online: number };
 
 export type PlayerProfile = {

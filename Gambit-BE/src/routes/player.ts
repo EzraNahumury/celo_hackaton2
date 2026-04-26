@@ -126,6 +126,54 @@ router.get("/:address/transactions", async (req: Request, res: Response): Promis
 
 /**
  * @openapi
+ * /player/{address}/puzzle-sessions:
+ *   get:
+ *     tags: [Player]
+ *     summary: Get puzzle session history for a player
+ *     parameters:
+ *       - in: path
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *           maximum: 100
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: List of puzzle sessions
+ */
+router.get("/:address/puzzle-sessions", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const address = normalizeAddress(req.params.address as string);
+    const limit = Math.min(parseInt(req.query.limit as string) || 30, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const { data, error } = await supabase
+      .from("puzzle_sessions")
+      .select("id, puzzle_id, correct, used_hint, prize_paid, tx_hash, solve_time_ms, created_at")
+      .eq("player_address", address)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    res.json({ sessions: data || [], limit, offset });
+  } catch (err) {
+    res.status(500).json(ERRORS.SERVER_ERROR);
+  }
+});
+
+/**
+ * @openapi
  * /player/online:
  *   get:
  *     tags: [Player]

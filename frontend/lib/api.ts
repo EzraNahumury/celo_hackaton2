@@ -14,6 +14,7 @@ import type {
   OnlineCountResponse,
   PlayerGamesResponse,
   PlayerProfile,
+  PlayerPuzzleSessionsResponse,
   PlayerTransactionsResponse,
   PuzzleHintResponse,
   PuzzleMoveResponse,
@@ -215,6 +216,18 @@ export const api = {
   },
   getOnlineCount() {
     return request<OnlineCountResponse>("/player/online");
+  },
+  getPlayerPuzzleSessions(
+    address: WalletAddress,
+    params: { limit?: number; offset?: number } = {},
+  ) {
+    const q = new URLSearchParams();
+    if (params.limit !== undefined) q.set("limit", String(params.limit));
+    if (params.offset !== undefined) q.set("offset", String(params.offset));
+    const qs = q.toString();
+    return request<PlayerPuzzleSessionsResponse>(
+      `/player/${encodeURIComponent(address)}/puzzle-sessions${qs ? `?${qs}` : ""}`,
+    );
   },
 };
 
