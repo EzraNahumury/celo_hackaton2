@@ -163,7 +163,7 @@ function TopBar() {
         className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-white"
       >
         <Image
-          src="/logo.png"
+          src="/logo-new.png"
           alt="Gambit"
           width={64}
           height={64}

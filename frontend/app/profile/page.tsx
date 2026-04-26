@@ -115,7 +115,7 @@ export default function ProfilePage() {
         </header>
         <div className="mt-6 flex flex-col items-center text-center">
           <span className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-3xl bg-white">
-            <Image src="/logo.png" alt="Gambit" width={144} height={144} priority className="h-full w-full scale-125 object-contain" />
+            <Image src="/logo-new.png" alt="Gambit" width={144} height={144} priority className="h-full w-full scale-125 object-contain" />
           </span>
           <p className="mt-3 text-lg font-bold">{address ? truncateAddress(address, 8, 6) : "Not connected"}</p>
           <p className="text-[11px] text-white/75">{ACTIVE_CHAIN.name}</p>

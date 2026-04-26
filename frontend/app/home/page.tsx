@@ -55,7 +55,7 @@ export default function HomePage() {
             href="/profile"
             aria-label="Profile"
             className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-white justify-self-end">
-            <Image src="/logo.png" alt="Gambit" width={56} height={56} priority className="h-full w-full scale-125 object-contain" />
+            <Image src="/logo-new.png" alt="Gambit" width={56} height={56} priority className="h-full w-full scale-125 object-contain" />
           </Link>
         </header>
 

@@ -2,13 +2,13 @@ import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-// Favicon: render logo.png centered inside a white circle so the tab icon
+// Favicon: render logo-new.png centered inside a white circle so the tab icon
 // reads clearly against dark browser chrome.
 export const size = { width: 64, height: 64 };
 export const contentType = "image/png";
 
 export default async function Icon() {
-  const logoBytes = await readFile(path.join(process.cwd(), "public", "logo.png"));
+  const logoBytes = await readFile(path.join(process.cwd(), "public", "logo-new.png"));
   const logoSrc = `data:image/png;base64,${logoBytes.toString("base64")}`;
 
   return new ImageResponse(
